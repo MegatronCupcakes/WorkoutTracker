@@ -1,0 +1,17 @@
+﻿@page "/"
+@inject IJSRuntime js;
+@using WorkoutTracker.DataAccess;
+
+<h3>Workout</h3>
+<p>perform a workout, yo!</p>
+
+@code {
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if(firstRender)
+        {
+            js.InvokeVoidAsync("console.log", "YO! Did stuff happen?");
+            IndexedDb _indexedDb = new IndexedDb(js, "programs");
+        }        
+    }    
+}
