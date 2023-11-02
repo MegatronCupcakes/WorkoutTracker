@@ -8,6 +8,7 @@ const DBAccess = {
     init: (name, version, indexFieldArray) => {
         return new Promise(async (resolve, reject) => {
             try {
+                if (window._databases[name]) resolve();
                 let _database;
                 const _dbVersions = (await window.indexedDB.databases())
                     .filter(dictionary => dictionary.name == name)
@@ -219,47 +220,63 @@ const _queryEvaluator = (searchObject) => {
     return testArray;
 };
 const _updateDocument = (originalDocument, updateObject) => {
-    let _original = { ...originalDocument };
+    let original = { ...originalDocument };
     Object.keys(updateObject).forEach(key => {
-        switch (key) {
-            case '$currentDate':
-                break;
-            case '$inc':
-                break;
-            case '$min':
-                break;
-            case '$max':
-                break;
-            case '$mul':
-                break;
-            case '$rename':
-                break;
-            case '$set':
-                Object.keys(updateObject[key]).forEach(updateKey => {
-                    // account for dot notation
-                    if (updateKey.includes(".")) {
-                        let tempDocument = _original;
-                        const subKeys = updateKey.split(".");
-                        for (let index = 0; index < subKeys.length; index++) {
-                            if (index < subKeys.length - 1) {
-                                if (!tempDocument[subKeys[index]]) tempDocument[subKeys[index]] = {};
-                            } else {
-                                tempDocument[subKeys[index]] = updateObject[key][updateKey];
-                            }
-                            tempDocument = tempDocument[subKeys[index]];
-                        }
-                    } else {
-                        _original[updateKey] = updateObject[key][updateKey];
-                    }
-                });
-                break;
-            case '$setOnInsert':
-                break;
-            case '$unset':
-                break;
-            default:
-                break;
-        }
+        Object.keys(updateObject[key]).forEach(updateKey => {
+            _handleUpdate(original, key, updateKey, updateObject[key][updateKey]);
+        });
     });
-    return _original;
+    return original;
+}
+const _handleUpdate = (original, action, updateKey, updateValue) => {
+    let tempDocument = original;
+    const subKeys = updateKey.split(".");
+    for (let index = 0; index < subKeys.length; index++) {
+        if (index < subKeys.length - 1) {
+            if (!tempDocument[subKeys[index]]) tempDocument[subKeys[index]] = {};
+        } else {
+            switch (action) {
+                case '$currentDate':
+                    // Currently only supports Date and not Mongo's Timestamp type.                 
+                    tempDocument[subKeys[index]] = new Date();
+                    break;
+                case '$inc':
+                    tempDocument[subKeys[index]] = ++tempDocument[subKeys[index]];
+                    break;
+                case '$min':
+                    if (_isNumeric(updateValue) && updateValue < tempDocument[subKeys[index]]) tempDocument[subKeys[index]] = Number(updateValue);
+                    break;
+                case '$max':
+                    if (_isNumeric(updateValue) && updateValue > tempDocument[subKeys[index]]) tempDocument[subKeys[index]] = Number(updateValue);
+                    break;
+                case '$mul':
+                    if (_isNumeric(updateValue)) tempDocument[subKeys[index]] = tempDocument[subKeys[index]] * Number(updateValue);
+                    break;
+                case '$rename':
+                    const value = tempDocument[subKeys[index]];
+                    delete tempDocument[subKeys[index]];
+                    tempDocument[updateValue] = value;
+                    break;
+                case '$set':
+                    tempDocument[subKeys[index]] = updateValue;
+                    break;
+                case '$setOnInsert':
+                    // Not implemented
+                    break;
+                case '$unset':
+                    delete tempDocument[subKeys[index]];
+                    break;
+            }
+        }
+        tempDocument = tempDocument[subKeys[index]];
+    }
+    return original
+}
+const _isNumeric = (value) => {
+    try {
+        Number(value);
+        return true;
+    } catch (error) {
+        return false;
+    }
 }
