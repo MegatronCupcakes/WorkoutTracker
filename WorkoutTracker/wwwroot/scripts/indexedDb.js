@@ -236,6 +236,7 @@ const _handleUpdate = (original, action, updateKey, updateValue) => {
             if (!tempDocument[subKeys[index]]) tempDocument[subKeys[index]] = {};
         } else {
             switch (action) {
+                // Field Operators                  
                 case '$currentDate':
                     // Currently only supports Date and not Mongo's Timestamp type.                 
                     tempDocument[subKeys[index]] = new Date();
@@ -265,6 +266,63 @@ const _handleUpdate = (original, action, updateKey, updateValue) => {
                     break;
                 case '$unset':
                     delete tempDocument[subKeys[index]];
+                    break;
+                // Array Operators
+                case '$':
+                    // Not implemented
+                    break;
+                case '$[]':
+                    // Not implemented
+                    break;
+                case '$[<identifier>]':
+                    // Not implemented
+                    break;
+                case '$addToSet':
+                    if (Array.isArray(tempDocument[subKeys[index]]) && tempDocument[subKeys[index]].indexOf(updateValue) == -1) tempDocument[subKeys[index]].push(updateValue);
+                    break;
+                case '$pop':
+                    if (Array.isArray(tempDocument[subKeys[index]])) {
+                        if (updateValue == 1) tempDocument[subKeys[index]].shift();
+                        if (updateValue == -1) tempDocument[subKeys[index]].pop();
+                    }
+                    break;
+                case '$pull':
+                    let _testSearchObject = {};
+                    _testSearchObject[subKeys[index]] = updateValue;
+
+                    const _test = typeof updateValue == 'object'
+                        ?
+                        testItem => {
+                            // To re-use our query evaluations, we need to wrap the test term in an object matching the search term.
+                            let _testObject = {};
+                            _testObject[subKeys[index]] = testItem;
+                            return !_queryEvaluator(_testSearchObject)[0](_testObject)
+                        }
+                        :
+                        testItem => testItem != updateValue;
+
+                    tempDocument[subKeys[index]] = tempDocument[subKeys[index]].filter(arrayItem => {
+                        return _test(arrayItem);
+                    });
+                    break;
+                case '$push':
+                    if (Array.isArray(tempDocument[subKeys[index]])) tempDocument[subKeys[index]].push(updateValue);
+                    break;
+                case '$pullAll':
+                    // this looks logically identical to $pull: {$in: [...]}
+                    _handleUpdate(original, '$pull', updateKey, { $in: updateValue });
+                    break;
+                case '$each':
+                    // works with $addToSet and $push...
+                    // example: { $addToSet: { <field>: { $each: [ <value1>, <value2> ... ] } } }
+                    // 
+                    // Will probably need to implement as a method called by $addToSet and $push
+                    break;
+                case '$position':
+                    break;
+                case '$slice':
+                    break;
+                case '$sort':
                     break;
             }
         }
