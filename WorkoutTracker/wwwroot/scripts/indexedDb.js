@@ -1,3 +1,18 @@
+/*
+    Not (yet) Implemented:
+        Queries
+            Geospatial Query Operators
+            Bitwise Query Operators
+            Projection Operators
+            Miscellaneous Query Operators
+        Updates
+            Field Update Operators: '$setOnInsert'
+            Array Update Operators: '$', '$[]', '$[<identifier>]'
+            Bitwise Update Operator
+        Aggregation
+            Aggregation Pipeline Stages
+            Aggregation Pipeline Operators
+*/
 window._databases = {};
 const _db = (name, permissions) => {
     const _transaction = window._databases[name].transaction(name, permissions);
@@ -126,6 +141,7 @@ const _queryEvaluator = (searchObject) => {
         }
 
         switch (_key) {
+            // Logical Operators
             case '$and':
                 const andArray = _searchObject[_key].map(_conditional => _evaluationForKey(Object.keys(_conditional)[0], _conditional, null, _parentObject));
                 // test if every conditional is true
@@ -143,6 +159,7 @@ const _queryEvaluator = (searchObject) => {
                 const orArray = _searchObject[_key].map(_conditional => _evaluationForKey(Object.keys(_conditional)[0], _conditional, null, _parentObject));
                 // test if at least one conditional is true
                 return _testRecord => orArray.some(test => test(_testRecord));
+            // Comparison Operators
             case '$eq':
                 return _testRecord => {
                     const [_searchValue, _testedValue] = _getValues(_searchObject, _testRecord, _key, _parentKeys);
@@ -183,6 +200,35 @@ const _queryEvaluator = (searchObject) => {
                     const [_searchValue, _testedValue] = _getValues(_searchObject, _testRecord, _key, _parentKeys);
                     return _searchValue.indexOf(_testedValue) == -1;
                 };
+            //Element Query Operators
+            case '$exists':
+                break;
+            case '$type':
+                break;
+            // Evaluation Query Operators
+            case '$expr':
+                break;
+            case '$jsonSchema':
+                break;
+            case '$mod':
+                break;
+            case '$regex':
+                break;
+            case '$text':
+                break;
+            case '$where':
+                break;
+            // Geospatial Query Operators - not implemented
+            // Array Query Operators
+            case '$all':
+                break;
+            case '$elemMatch':
+                break;
+            case '$size':
+                break;
+            // Bitwise Query Operators - not implemented
+            // Projection Operators - not implemented
+            // Miscellaneous Query Operators - not implemented
             default:
                 if (typeof _searchObject[_key] === 'object') {
                     // nested query objects have a single special operator key
@@ -236,7 +282,7 @@ const _handleUpdate = (original, action, updateKey, updateValue) => {
             if (!tempDocument[subKeys[index]]) tempDocument[subKeys[index]] = {};
         } else {
             switch (action) {
-                // Field Operators                  
+                // Field Update Operators                  
                 case '$currentDate':
                     // Currently only supports Date and not Mongo's Timestamp type.                 
                     tempDocument[subKeys[index]] = new Date();
@@ -267,7 +313,7 @@ const _handleUpdate = (original, action, updateKey, updateValue) => {
                 case '$unset':
                     delete tempDocument[subKeys[index]];
                     break;
-                // Array Operators
+                // Array Update Operators
                 case '$':
                     // Not implemented
                     break;
@@ -278,7 +324,15 @@ const _handleUpdate = (original, action, updateKey, updateValue) => {
                     // Not implemented
                     break;
                 case '$addToSet':
-                    if (Array.isArray(tempDocument[subKeys[index]]) && tempDocument[subKeys[index]].indexOf(updateValue) == -1) tempDocument[subKeys[index]].push(updateValue);
+                    if (Array.isArray(tempDocument[subKeys[index]])) {
+                        if (typeof updateValue == 'object' && Object.keys(updateValue)[0] == '$each' && Array.isArray(updateValue['$each'])) {
+                            updateValue['$each'].forEach(_value => {
+                                if (tempDocument[subKeys[index]].indexOf(_value) == -1) tempDocument[subKeys[index]].push(_value);
+                            });
+                        } else if (tempDocument[subKeys[index]].indexOf(updateValue) == -1) {
+                            tempDocument[subKeys[index]].push(updateValue);
+                        }
+                    }
                     break;
                 case '$pop':
                     if (Array.isArray(tempDocument[subKeys[index]])) {
@@ -306,24 +360,82 @@ const _handleUpdate = (original, action, updateKey, updateValue) => {
                     });
                     break;
                 case '$push':
-                    if (Array.isArray(tempDocument[subKeys[index]])) tempDocument[subKeys[index]].push(updateValue);
+                    if (Array.isArray(tempDocument[subKeys[index]])) {
+                        if (typeof updateValue == 'object') {
+                            let _updateSlice;
+                            let _updatePosition;
+                            let _updateSort;
+                            let _updateArray = [];
+                            if (updateValue['$slice'] && _isNumeric(updateValue['$slice'])) {
+                                _updateSlice = updateValue['$slice'];
+                            }
+                            if (updateValue['$position'] && _isNumeric(updateValue['$position'])) {
+                                _updatePosition = updateValue['$position'];
+                            }
+                            if (updateValue['$sort'] && _isNumeric(updateValue['$sort'])) {
+                                _updateSort = updateValue['$sort'];
+                            }
+                            if (Array.isArray(updateValue['$each']) && Array.isArray(updateValue['$each'])) {
+                                _updateArray = updateValue['$each'];
+                            }
+                            let _update = [
+                                ...tempDocument[subKeys[index]].slice(0, _updatePosition),
+                                ..._updateArray,
+                                ...tempDocument[subKeys[index]].slice(_updatePosition)
+                            ];
+                            if (_updateSlice) _update = _update.slice(_updateSlice);
+                            if (_updateSort) {
+                                if (_isNumeric(_updateSort) && Math.abs(_updateSort) == 1) {
+                                    if (_update.every(item => _isNumeric(item))) {
+                                        // sort numbers
+                                        _update.sort((a, b) => a - b);
+                                    } else {
+                                        // sort strings
+                                        _update.sort();
+                                    }
+                                    if (_updateSort == -1) _update.reverse();
+                                } else if (typeof _updateSort == 'object') {
+                                    // sort documents by property
+                                    let _sortField = Object.keys(_updateSort)[0];
+                                    let _sortDirection = _updateSort[_sortField];
+                                    if (_isNumeric(_sortDirection) && Math.abs(_sortDirection) == 1) {
+                                        _update.sort((a, b) => {
+                                            // account for dot notation....
+                                            _sortField.split('.').forEach(key => {
+                                                a = a[key];
+                                                b = b[key];
+                                            });
+                                            if (a > b) return 1;
+                                            if (a < b) return -1;
+                                            return 0;
+                                        });
+                                        if (_sortDirection == -1) _update.reverse();
+                                    }
+                                }
+                            }
+                            tempDocument[subKeys[index]] = _update;
+                        } else {
+                            tempDocument[subKeys[index]].push(updateValue);
+                        }
+                    }
                     break;
                 case '$pullAll':
                     // this looks logically identical to $pull: {$in: [...]}
                     _handleUpdate(original, '$pull', updateKey, { $in: updateValue });
                     break;
-                case '$each':
-                    // works with $addToSet and $push...
-                    // example: { $addToSet: { <field>: { $each: [ <value1>, <value2> ... ] } } }
-                    // 
-                    // Will probably need to implement as a method called by $addToSet and $push
-                    break;
-                case '$position':
-                    break;
-                case '$slice':
-                    break;
-                case '$sort':
-                    break;
+                //case '$each':
+                // works with $addToSet and $push...
+                // implemented by $addToSet and $push
+                //case '$position':
+                // works with $push...
+                // implemented by $push
+                //case '$slice':
+                // works with $push...
+                // implemented by $push
+                //case '$sort':
+                // works with $push...
+                // implemented by $push
+                // Bitwise Update Operator - not implemented                
             }
         }
         tempDocument = tempDocument[subKeys[index]];
