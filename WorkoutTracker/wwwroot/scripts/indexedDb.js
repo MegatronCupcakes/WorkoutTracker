@@ -1,6 +1,7 @@
 /*
     Not (yet) Implemented:
         Queries
+            Evaluation Query Operators: '$jsonSchema'
             Geospatial Query Operators
             Bitwise Query Operators
             Projection Operators
@@ -23,20 +24,23 @@ const DBAccess = {
     init: (name, version, indexFieldArray) => {
         return new Promise(async (resolve, reject) => {
             try {
-                if (window._databases[name]) resolve();
                 let _database;
+                if (window._databases[name]) resolve(true);
                 const _dbVersions = (await window.indexedDB.databases())
                     .filter(dictionary => dictionary.name == name)
                     .map(dictionary => dictionary.version)
-                    .sort()
-                    .reverse();
+                    .sort((a, b) => b - a);
                 // request most recent version
                 const _openRequest = window.indexedDB.open(name, version ? version : _dbVersions[0]);
-                _openRequest.onerror = () => reject(`ERROR: could not open IndexedDB "${name}"`);
+                _openRequest.onerror = () => {
+                    console.error(`DBAccess.init Error: could not open IndexedDB "${name}" (${error.message})`);
+                    reject(false);
+                };
                 _openRequest.onsuccess = (event) => {
                     _database = event.target.result;
+                    console.log(`DBAccess.init open request successful for "${name}"`);
                     window._databases[name] = _database;
-                    resolve();
+                    resolve(true);
                 };
                 _openRequest.onupgradeneeded = (event) => {
                     _database = event.target.result;
@@ -44,40 +48,49 @@ const DBAccess = {
                     if (Array.isArray(indexFieldArray)) {
                         indexFieldArray.forEach(field => _objectStore.createIndex(field, field, { unique: false }));
                     }
+                    console.log(`DBAccess.init upgrade needed for "${name}"`);
                     window._databases[name] = _database;
-                    resolve();
+                    resolve(true);
                 }
             } catch (error) {
-                reject(error);
+                console.error(`DBAccess.init Error: ${error.message}`);
+                reject(false);
             }
         });
     },
-    create: (name, document) => {
+    insert: (name, document) => {
         return new Promise((resolve, reject) => {
+            console.log(`"DBAccess.create" called with document: ${document}`);
             if (typeof document === 'string') document = JSON.parse(document);
             const _request = _db(name, 'readwrite').add({
                 _id: crypto.randomUUID(),
                 ...document
             });
             _request.onerror = error => reject(error);
-            _request.onsuccess = () => resolve(_request.result);
+            _request.onsuccess = () => {
+                console.log(`created: ${JSON.stringify(_request)}`);
+                resolve(_request.result);
+            };
         });
     },
-    update: (name, searchObject, updateObject) => {
-        return new Promise((resolve, reject) => {
-            if (typeof searchObject === 'string') searchObject = JSON.parse(searchObject);
-            if (typeof updateObject === 'string') updateObject = JSON.parse(updateObject);
-
-            const _findRequest = _db(name, 'readonly').get(searchObject._id);
-            _findRequest.onerror = error => reject(error);
-            _findRequest.onsuccess = () => {
-                const _document = _findRequest.result;
-
-                let updatedDocument = _updateDocument(_document, updateObject);
-                const _updateRequest = _db(name, 'readwrite').put(updatedDocument);
-
-                _updateRequest.onerror = error => reject(error);
-                _updateRequest.onsuccess = () => resolve(_updateRequest.result);
+    update: function (name, searchObject, updateObject) {
+        return new Promise(async (resolve, reject) => {
+            try {
+                if (typeof searchObject === 'string') searchObject = JSON.parse(searchObject);
+                if (typeof updateObject === 'string') updateObject = JSON.parse(updateObject);
+                // allow for updating multiple documents ("multi" option not implemented yet);
+                const _matchingDocuments = await this.find(name, searchObject);
+                await Promise.all(_matchingDocuments.map(_matchingDocument => {
+                    return new Promise((_resolve, _reject) => {
+                        let _updatedDocument = _updateDocument(_matchingDocument, updateObject);
+                        const _updateRequest = _db(name, 'readwrite').put(_updatedDocument);
+                        _updateRequest.onerror = error => _reject();
+                        _updateRequest.onsuccess = () => _resolve();
+                    });
+                }));
+                resolve(true);
+            } catch (error) {
+                resolve(false);
             }
         });
     },
@@ -90,10 +103,10 @@ const DBAccess = {
         });
     },
     find: (name, searchObject) => {
-        return new Promise((resolve, reject) => {
+        return new Promise(async (resolve, reject) => {
             try {
                 let results = [];
-                const evaluations = _queryEvaluator(searchObject);
+                const evaluations = _queryEvaluator(searchObject ? searchObject : {});
                 if (typeof searchObject === 'string') searchObject = JSON.parse(searchObject);
                 const _cursorRequest = _db(name, 'readonly').openCursor();
                 _cursorRequest.onsuccess = ({ target }) => {
@@ -202,18 +215,79 @@ const _queryEvaluator = (searchObject) => {
                 };
             //Element Query Operators
             case '$exists':
+                return _testRecord => {
+                    const [_searchValue, _testedValue] = _getValues(_searchObject, _testRecord, _key, _parentKeys);
+                    const _searchingForExist = _searchValue === true || (typeof _searchValue === 'string' && _searchValue.toLowerCase() === 'true') || (_isNumeric(_searchValue) && Number(_searchValue) === 1) ? true : false;
+                    // account for dot notation
+                    try {
+                        _parentKeys[_parentKeys.length - 1].split('.').forEach(subkey => _testRecord = _testRecord[subkey]);
+                        return _searchingForExist ? true : false;
+                    } catch (_error) {
+                        return _searchingForExist ? false : true;
+                    }
+                }
                 break;
             case '$type':
-                break;
+                return _testRecord => {
+                    const [_searchValue, _testedValue] = _getValues(_searchObject, _testRecord, _key, _parentKeys);
+                    console.log(`_testRecord: ${JSON.stringify(_testRecord)} searchObject: ${JSON.stringify(searchObject)} _key: ${_key}, _parentKeys: ${JSON.stringify(_parentKeys)} _searchValue: ${_searchValue} _testedValue: ${_testedValue}`);
+                    return typeof _testedValue === _searchValue;
+                }
             // Evaluation Query Operators
             case '$expr':
-                break;
+                return _testRecord => {
+                    const [_searchValue, _testedValue] = _getValues(_searchObject, _testRecord, _key, _parentKeys);
+                    const _expressionOperator = Object.keys(_searchValue)[0];
+                    const _expressionKeys = _searchValue[_expressionOperator];
+                    // get values for keys....
+                    const _getValuesFromExpressionKeys = (testRecord, key) => {
+                        if (key[0] == '$') {
+                            // get value for key... and of course, account for dot notation
+                            key.replace('$', '').split('.').forEach(subKey => {
+                                testRecord = testRecord[subKey];
+                            });
+                            return testRecord;
+                        } else {
+                            return key;
+                        }
+                    };
+                    const valuesFromKeys = _expressionKeys.map(key => _getValuesFromExpressionKeys({ ..._testRecord }, key));
+                    console.log(`valuesFromKeys[0]: ${valuesFromKeys[0]} valuesFromKeys[1]: ${valuesFromKeys[1]}`);
+                    switch (_expressionOperator) {
+                        case '$eq':
+                            return valuesFromKeys[0] == valuesFromKeys[1];
+                        case '$gt':
+                            return valuesFromKeys[0] > valuesFromKeys[1];
+                        case '$gte':
+                            return valuesFromKeys[0] >= valuesFromKeys[1];
+                        case '$lt':
+                            return valuesFromKeys[0] < valuesFromKeys[1];
+                        case '$lte':
+                            return valuesFromKeys[0] <= valuesFromKeys[1];
+                    }
+                }
             case '$jsonSchema':
+                // Not Implemented (yet)
                 break;
             case '$mod':
-                break;
+                return _testRecord => {
+                    const [_searchValue, _testedValue] = _getValues(_searchObject, _testRecord, _key, _parentKeys);
+                    if (Array.isArray(_searchValue)) {
+                        const _parentKey = _parentKeys[_parentKeys.length - 1];
+                        let _testValue = _testRecord;
+                        _parentKey.split('.').forEach(subKey => {
+                            _testValue = _testValue[subKey];
+                        });
+                        return _testValue % _searchValue[0] == _searchValue[1];
+                    } else {
+                        return false;
+                    }
+                }
             case '$regex':
-                break;
+                console.log(`_testRecord: ${JSON.stringify(_testRecord)} searchObject: ${JSON.stringify(searchObject)} _key: ${_key}, _parentKeys: ${JSON.stringify(_parentKeys)} _searchValue: ${JSON.stringify(_searchValue)} _testedValue: ${JSON.stringify(_testedValue)}`);
+                const [_searchValue, _testedValue] = _getValues(_searchObject, _testRecord, _key, _parentKeys);
+                const _parentKey = _parentKeys[_parentKeys.length - 1];
+                Object.keys(_searchValue)
             case '$text':
                 break;
             case '$where':
