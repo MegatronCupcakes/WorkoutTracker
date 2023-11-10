@@ -15,41 +15,51 @@
             Aggregation Pipeline Operators
 */
 window._databases = {};
-const _db = (name, permissions) => {
-    const _transaction = window._databases[name].transaction(name, permissions);
-    const _objectStore = _transaction.objectStore(name);
-    return _objectStore;
+const _db = (databaseName, objectStoreName, permissions) => {
+    try {
+        const _transaction = window._databases[databaseName].transaction(objectStoreName, permissions);
+        const _objectStore = _transaction.objectStore(objectStoreName);
+        return _objectStore;
+    } catch (error) {
+        throw new Error(`DBAccess Error: "${error.message}" - is the database initialized?`);
+    }
+}
+const _createObjectStore = (db, objectStoreName, indexFieldArray, upgradeBool) => {
+    const _names = Object.keys(db.objectStoreNames).map(key => db.objectStoreNames[key]);
+    if (upgradeBool || _names.indexOf(objectStoreName) == -1) {
+        const _objectStore = db.createObjectStore(objectStoreName, { keyPath: "_id" });
+        if (Array.isArray(indexFieldArray)) {
+            indexFieldArray.forEach(field => _objectStore.createIndex(field, field, { unique: false }));
+        }
+    }
 }
 const DBAccess = {
-    init: (name, version, indexFieldArray) => {
+    init: (databaseName, objectStoreName, version, indexFieldArray) => {
         return new Promise(async (resolve, reject) => {
             try {
                 let _database;
-                if (window._databases[name]) resolve(true);
+                if (window._databases[databaseName]) resolve(true);
+                if (typeof indexFieldArray === 'string') indexFieldArray = JSON.parse(indexFieldArray);
                 const _dbVersions = (await window.indexedDB.databases())
-                    .filter(dictionary => dictionary.name == name)
+                    .filter(dictionary => dictionary.name == databaseName)
                     .map(dictionary => dictionary.version)
                     .sort((a, b) => b - a);
                 // request most recent version
-                const _openRequest = window.indexedDB.open(name, version ? version : _dbVersions[0]);
+                const _openRequest = window.indexedDB.open(databaseName, version ? version : _dbVersions[0]);
                 _openRequest.onerror = () => {
-                    console.error(`DBAccess.init Error: could not open IndexedDB "${name}" (${error.message})`);
+                    console.error(`DBAccess.init Error: could not open IndexedDB "${databaseName}" (${error.message})`);
                     reject(false);
                 };
                 _openRequest.onsuccess = (event) => {
                     _database = event.target.result;
-                    console.log(`DBAccess.init open request successful for "${name}"`);
-                    window._databases[name] = _database;
+                    _createObjectStore(_database, objectStoreName, indexFieldArray, false);
+                    window._databases[databaseName] = _database;
                     resolve(true);
                 };
                 _openRequest.onupgradeneeded = (event) => {
                     _database = event.target.result;
-                    const _objectStore = _database.createObjectStore(name, { keyPath: "_id" });
-                    if (Array.isArray(indexFieldArray)) {
-                        indexFieldArray.forEach(field => _objectStore.createIndex(field, field, { unique: false }));
-                    }
-                    console.log(`DBAccess.init upgrade needed for "${name}"`);
-                    window._databases[name] = _database;
+                    _createObjectStore(_database, objectStoreName, indexFieldArray, true);
+                    window._databases[databaseName] = _database;
                     resolve(true);
                 }
             } catch (error) {
@@ -58,32 +68,32 @@ const DBAccess = {
             }
         });
     },
-    insert: (name, document) => {
+    insert: (databaseName, objectStoreName, document) => {
         return new Promise((resolve, reject) => {
-            console.log(`"DBAccess.create" called with document: ${document}`);
             if (typeof document === 'string') document = JSON.parse(document);
-            const _request = _db(name, 'readwrite').add({
+            const _request = _db(databaseName, objectStoreName, 'readwrite').add({
                 _id: crypto.randomUUID(),
                 ...document
             });
             _request.onerror = error => reject(error);
             _request.onsuccess = () => {
-                console.log(`created: ${JSON.stringify(_request)}`);
                 resolve(_request.result);
             };
         });
     },
-    update: function (name, searchObject, updateObject) {
+    update: function (databaseName, objectStoreName, searchObject, updateObject) {
         return new Promise(async (resolve, reject) => {
             try {
                 if (typeof searchObject === 'string') searchObject = JSON.parse(searchObject);
-                if (typeof updateObject === 'string') updateObject = JSON.parse(updateObject);
+                if (typeof updateObject === 'string') updateObject = JSON.parse(updateObject);                
                 // allow for updating multiple documents ("multi" option not implemented yet);
-                const _matchingDocuments = await this.find(name, searchObject);
+                const _matchingDocuments = await this.find(databaseName, objectStoreName, searchObject);
                 await Promise.all(_matchingDocuments.map(_matchingDocument => {
                     return new Promise((_resolve, _reject) => {
                         let _updatedDocument = _updateDocument(_matchingDocument, updateObject);
-                        const _updateRequest = _db(name, 'readwrite').put(_updatedDocument);
+                        // disallow updating the _id property by setting it back to its pre-update value.
+                        _updatedDocument._id = _matchingDocument._id;
+                        const _updateRequest = _db(databaseName, objectStoreName, 'readwrite').put(_updatedDocument);
                         _updateRequest.onerror = error => _reject();
                         _updateRequest.onsuccess = () => _resolve();
                     });
@@ -94,25 +104,39 @@ const DBAccess = {
             }
         });
     },
-    findOne: (name, searchObject) => {
-        return new Promise((resolve, reject) => {
-            if (typeof searchObject === 'string') searchObject = JSON.parse(searchObject);
-            const _request = _db(name, 'readonly').get(searchObject._id);
-            _request.onerror = error => reject(error);
-            _request.onsuccess = () => resolve(_request.result);
-        });
-    },
-    find: (name, searchObject) => {
+    findOne: (databaseName, objectStoreName, searchObject) => {
         return new Promise(async (resolve, reject) => {
             try {
-                let results = [];
-                const evaluations = _queryEvaluator(searchObject ? searchObject : {});
                 if (typeof searchObject === 'string') searchObject = JSON.parse(searchObject);
-                const _cursorRequest = _db(name, 'readonly').openCursor();
+                const evaluations = _queryEvaluator(searchObject ? searchObject : {});                
+                const _cursorRequest = _db(databaseName, objectStoreName, 'readonly').openCursor();
                 _cursorRequest.onsuccess = ({ target }) => {
                     const _cursor = target.result;
                     if (_cursor) {
-                        // do stuff
+                        if (evaluations.map(test => test(_cursor.value)).every(bool => bool)) {
+                            resolve(_cursor.value);
+                        } else {
+                            _cursor.continue();
+                        }
+                    } else {
+                        resolve(null);
+                    }
+                }
+            } catch (error) {
+                reject(error);
+            }
+        });
+    },
+    find: (databaseName, objectStoreName, searchObject) => {
+        return new Promise(async (resolve, reject) => {
+            try {                
+                let results = [];
+                if (typeof searchObject === 'string') searchObject = JSON.parse(searchObject);
+                const evaluations = _queryEvaluator(searchObject ? searchObject : {});                
+                const _cursorRequest = _db(databaseName, objectStoreName, 'readonly').openCursor();
+                _cursorRequest.onsuccess = ({ target }) => {
+                    const _cursor = target.result;
+                    if (_cursor) {
                         if (evaluations.map(test => test(_cursor.value)).every(bool => bool)) results.push(_cursor.value);
                         _cursor.continue();
                     } else {
@@ -124,15 +148,17 @@ const DBAccess = {
             }
         });
     },
-    remove: (name, searchObject) => {
+    remove: (databaseName, objectStoreName, searchObject) => {
+        // currently restricted to remove single record by _id only.
         return new Promise((resolve, reject) => {
             if (typeof searchObject === 'string') searchObject = JSON.parse(searchObject);
-            const _request = _db(name, 'readwrite').delete(searchObject._id);
+            const _request = _db(databaseName, objectStoreName, 'readwrite').delete(searchObject._id);
             _request.onerror = error => reject(error);
             _request.onsuccess = () => resolve(_request.result);
         });
 
     }
+
 };
 window.DBAccess = DBAccess;
 
