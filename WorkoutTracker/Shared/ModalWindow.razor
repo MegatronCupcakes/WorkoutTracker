@@ -1,0 +1,75 @@
+﻿@using WorkoutTracker.Models;
+
+<button class="@GetButtonClasses()" data-bs-toggle="modal" data-bs-target="#@GetModalId()">@Activity</button>
+<div id="@GetModalId()" class="modal modal-lg fade" tabIndex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">@GetTitle()</h5>
+                <button type="button" class="btn-close" data-bs-toggle="modal" data-bs-target="#@GetModalId()" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>modal body</p>
+                <p>ModalId: @GetModalId()</p>
+                <p>ModalTitle: @GetTitle()</p>
+                <p>Type: @Type</p>
+                <p>Activity: @Activity</p>
+                <p>ButtonClasses: @GetButtonClasses()</p>
+            </div>
+            <div class="modal-footer">
+                modal footer
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public ActivityBase? Document { get; set; }
+    [Parameter]
+    public string? Type { get; set; }
+    [Parameter]
+    public string Activity { get; set; } = "add";
+
+    private string GetModalId()
+    {
+        string modalId = $"{Activity}_modal";
+        if (Type != null)
+        {
+            modalId = $"{Activity}_{Type}_modal";
+        }
+        if (Document != null)
+        {
+            modalId = $"{Activity}_{Document._id}_modal";
+        }
+        return modalId;
+    }
+
+    private string GetButtonClasses()
+    {
+        string buttonClasses = "btn btn-sm btn-default";
+        if (Activity == "add")
+        {
+            buttonClasses = "btn btn-sm btn-primary";
+        }
+        if (Activity == "delete")
+        {
+            buttonClasses = "btn btn-sm btn-danger";
+        }
+        return buttonClasses;
+    }
+
+    private string GetTitle()
+    {
+        string title = "new activity";
+        if (Type != null)
+        {
+            title = $"Add New {Type}";
+        }
+        if (Document != null)
+        {
+            title = Document.Name;
+        }
+        return title;
+    }
+}

@@ -1,38 +1,49 @@
 ﻿@page "/"
 @inject IJSRuntime js;
-@using System.Text.Json;
 @using WorkoutTracker.DataAccess;
 @using WorkoutTracker.Types;
 
-<h3>Workout</h3>
-<p>perform a workout, yo!</p>
+<div class="container">
+    <h3>Workout</h3>
+    <p>perform a workout, yo!</p>
+
+    <div class="col-12">
+        @if(programs.Count == 0)
+        {
+            <div>you don't have any active workouts</div>
+        }
+        else
+        {
+            @foreach (var program in programs)
+            {
+                <div class="row listing">
+                    <div class="row">
+                        <div class="col-4">@program.Name</div>
+                    </div>
+                </div>
+            }
+        }        
+    </div>    
+</div>
 
 @code {
-    IndexedDb? indexedDb;
+    private static List<Program> programs = new List<Program>();
 
-    protected override async void OnAfterRender(bool firstRender)
+    protected override void OnAfterRender(bool firstRender)
     {
         if(firstRender)
         {
-            indexedDb = new IndexedDb(js, "programs");
-        }
-        if (indexedDb != null)
-        {
-            // This is "inelegant"... update so IndexedDb fires a ready event
-            while (!indexedDb.Initialized)
-            {
-                await Task.Delay(100);
-            }
-            
-            var query = @"{}";
-            var programs = await indexedDb.Find<List<Program>>(query);
-            
-            foreach (Program program in programs)
-            {
-                await js.InvokeVoidAsync("console.log", $"program.Name: {program.Name}");
-            }
-            
-            await js.InvokeVoidAsync("console.log", $"I did a thing! program: \"{JsonSerializer.Serialize(programs)}\"");
-        }
-    }    
+            var indexedDb = new IndexedDb(js, "programs");
+            indexedDb.DbInitialized += indexedDb_DbInitialized;
+        }        
+    }
+
+    private async void indexedDb_DbInitialized(object sender, bool Initialized)
+    {
+        IndexedDb indexedDb = (IndexedDb)sender;
+        var query = @"{""active"": true}";
+        programs = await indexedDb.Find<List<Program>>(query);
+        StateHasChanged();
+    }
+
 }

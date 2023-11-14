@@ -1,11 +1,52 @@
 ﻿@page "/programs"
 @inject IJSRuntime js;
 @using WorkoutTracker.DataAccess;
+@using WorkoutTracker.Types;
 
+<div class="container">
+    <div class="row">
+        <div class="col-11"><h3>Programs</h3></div>
+        <div class="col-1">
+            <ModalWindow Type="Program" Activity="add" />
+        </div>
+        <div class="col-12">
+            <p>programs, yo!</p>
+        </div>        
+    </div>
 
-<h3>Programs</h3>
-<p>programs, yo!</p>
+    <div class="col-12">
+        @foreach (var program in programs)
+        {
+            <div class="row listing">
+                <div class="col-4">@program.Name</div>
+                <div class="col-1">
+                    <ModalWindow Type="Program" Activity="edit" Document="program" />
+                </div>
+                <div class="col-1">
+                    <ModalWindow Type="Program" Activity="delete" Document="program" />
+                </div>                
+            </div>
+        }
+    </div>
+</div>
 
 @code {
-    //IndexedDb _indexedDb = new IndexedDb(js, "programs");
+    private static List<Program> programs = new List<Program>();
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var indexedDb = new IndexedDb(js, "programs");
+            indexedDb.DbInitialized += indexedDb_DbInitialized;
+        }
+    }
+
+    private async void indexedDb_DbInitialized(object sender, bool Initialized)
+    {
+        IndexedDb indexedDb = (IndexedDb)sender;
+        var query = @"{}";
+        programs = await indexedDb.Find<List<Program>>(query);
+        StateHasChanged();
+    }
 }
