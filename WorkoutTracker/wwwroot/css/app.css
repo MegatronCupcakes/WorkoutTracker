@@ -62,3 +62,10 @@ a, .btn-link {
     .blazor-error-boundary::after {
         content: "An error has occurred."
     }
+
+.listing {
+    margin-bottom: 1em;
+}
+.nav-svg {
+    padding-left: 1em;
+}
