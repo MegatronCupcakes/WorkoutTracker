@@ -1,4 +1,4 @@
-﻿using WorkoutTracker.DataAccess;
+﻿using WorkoutTracker.Models;
 
 namespace WorkoutTracker.Types
 {
@@ -9,10 +9,8 @@ namespace WorkoutTracker.Types
     /// Program -> Routine -> Exercise
     /// An Exercise is a description of an activity
     /// </summary>
-    public class Exercise : IStorable
+    public class Exercise : ActivityBase
     {
-        public string _id { get; set; }
-        public string Name { get; set; }
         public string? Notes {  get; set; }
         public Exercise(string id, string name, string? notes)
         {
