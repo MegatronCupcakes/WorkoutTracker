@@ -13,6 +13,10 @@
         Aggregation
             Aggregation Pipeline Stages
             Aggregation Pipeline Operators
+        Other Options
+            multi
+            limit
+            sort
 */
 window._databases = {};
 const _db = (databaseName, objectStoreName, permissions) => {
