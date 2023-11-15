@@ -72,11 +72,14 @@ const DBAccess = {
             }
         });
     },
-    insert: (databaseName, objectStoreName, document) => {
-        return new Promise((resolve, reject) => {
+    insert: function(databaseName, objectStoreName, document){
+        return new Promise(async (resolve, reject) => {
+            console.log(`DBAccess.insert: ${document}`);
             if (typeof document === 'string') document = JSON.parse(document);
+            // if document._id is provided and not already used, use the provided value; otherwise generate a new value.
+            const _keyIsUnique = document._id && (await this.findOne({ _id: document._id })) == null;
             const _request = _db(databaseName, objectStoreName, 'readwrite').add({
-                _id: crypto.randomUUID(),
+                _id: _keyIsUnique ? document._id : crypto.randomUUID(),
                 ...document
             });
             _request.onerror = error => reject(error);
@@ -87,7 +90,7 @@ const DBAccess = {
     },
     update: function (databaseName, objectStoreName, searchObject, updateObject) {
         return new Promise(async (resolve, reject) => {
-            try {
+            try {                
                 if (typeof searchObject === 'string') searchObject = JSON.parse(searchObject);
                 if (typeof updateObject === 'string') updateObject = JSON.parse(updateObject);                
                 // allow for updating multiple documents ("multi" option not implemented yet);
