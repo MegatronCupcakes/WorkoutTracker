@@ -28,44 +28,50 @@ const _db = (databaseName, objectStoreName, permissions) => {
         throw new Error(`DBAccess Error: "${error.message}" - is the database initialized?`);
     }
 }
-const _createObjectStore = (db, objectStoreName, indexFieldArray, upgradeBool) => {
-    const _names = Object.keys(db.objectStoreNames).map(key => db.objectStoreNames[key]);
-    if (upgradeBool || _names.indexOf(objectStoreName) == -1) {
-        const _objectStore = db.createObjectStore(objectStoreName, { keyPath: "_id" });
-        if (Array.isArray(indexFieldArray)) {
-            indexFieldArray.forEach(field => _objectStore.createIndex(field, field, { unique: false }));
-        }
-    }
+const _createObjectStore = (db, objectStoreName, indexFieldArray) => {
+    const _objectStore = db.createObjectStore(objectStoreName, { keyPath: "_id" });
+    if (Array.isArray(indexFieldArray)) {
+        indexFieldArray.forEach(field => _objectStore.createIndex(field, field, { unique: false }));
+    }    
 }
 const DBAccess = {
-    init: (databaseName, objectStoreName, version, indexFieldArray) => {
+    init: (databaseName, objectStoreName, indexFieldArray) => {
         return new Promise(async (resolve, reject) => {
-            try {
-                let _database;
-                if (window._databases[databaseName]) resolve(true);
+            try {                
+                let _database;                            
                 if (typeof indexFieldArray === 'string') indexFieldArray = JSON.parse(indexFieldArray);
                 const _dbVersions = (await window.indexedDB.databases())
                     .filter(dictionary => dictionary.name == databaseName)
                     .map(dictionary => dictionary.version)
-                    .sort((a, b) => b - a);
+                    .sort((a, b) => b - a);                
                 // request most recent version
-                const _openRequest = window.indexedDB.open(databaseName, version ? version : _dbVersions[0]);
-                _openRequest.onerror = () => {
-                    console.error(`DBAccess.init Error: could not open IndexedDB "${databaseName}" (${error.message})`);
+                let version = _dbVersions[0];
+                if (window._databases[databaseName]) {
+                    _database = window._databases[databaseName];
+                    const _names = Object.keys(_database.objectStoreNames).map(key => _database.objectStoreNames[key]);
+                    if (_names.indexOf(objectStoreName) == -1) {
+                        // object store not found; indicate upgrade needed by incrementing version number
+                        ++version;
+                    }
+                }                
+                const _openRequest = window.indexedDB.open(databaseName, version);
+                _openRequest.onupgradeneeded = (event) => {                    
+                    // an ObjectStore can only be created from an onupgradeneeded event
+                    const _upgradeTransaction = event.target.transaction;
+                    _createObjectStore(event.target.result, objectStoreName, indexFieldArray);
+                };
+                _openRequest.onblocked = (event) => {
+                    // an open database connection blocks the upgrade; close the connection to continue
+                    window._databases[databaseName].close();
+                };
+                _openRequest.onerror = () => {                    
                     reject(false);
                 };
-                _openRequest.onsuccess = (event) => {
+                _openRequest.onsuccess = (event) => {                    
                     _database = event.target.result;
-                    _createObjectStore(_database, objectStoreName, indexFieldArray, false);
                     window._databases[databaseName] = _database;
                     resolve(true);
-                };
-                _openRequest.onupgradeneeded = (event) => {
-                    _database = event.target.result;
-                    _createObjectStore(_database, objectStoreName, indexFieldArray, true);
-                    window._databases[databaseName] = _database;
-                    resolve(true);
-                }
+                };                
             } catch (error) {
                 console.error(`DBAccess.init Error: ${error.message}`);
                 reject(false);
