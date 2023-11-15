@@ -77,7 +77,7 @@ const DBAccess = {
             console.log(`DBAccess.insert: ${document}`);
             if (typeof document === 'string') document = JSON.parse(document);
             // if document._id is provided and not already used, use the provided value; otherwise generate a new value.
-            const _keyIsUnique = document._id && (await this.findOne({ _id: document._id })) == null;
+            const _keyIsUnique = document._id && (await this.findOne(databaseName, objectStoreName, { _id: document._id })) == null;
             const _request = _db(databaseName, objectStoreName, 'readwrite').add({
                 _id: _keyIsUnique ? document._id : crypto.randomUUID(),
                 ...document

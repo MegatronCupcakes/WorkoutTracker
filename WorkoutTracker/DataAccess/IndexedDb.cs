@@ -58,15 +58,11 @@ namespace WorkoutTracker.DataAccess
         /// <returns>_id</returns>
         public async Task<string> Insert(string document)
         {
-            await JsRuntime.InvokeVoidAsync("console.log", "DERP!");
-            //return await JsRuntime.InvokeAsync<string>("DBAccess.insert", DatabaseName, Name, document);
-            return "DERP DERP DERP";
+            return await JsRuntime.InvokeAsync<string>("DBAccess.insert", DatabaseName, Name, document);
         }
         public async Task<string> Insert(object document)
         {
-            await JsRuntime.InvokeVoidAsync("console.log", $"IndexedDb.Insert: document type: {JsonSerializer.Serialize(document, serializeOptions)}");
-            //return await JsRuntime.InvokeAsync<string>("DBAccess.insert", DatabaseName, Name, JsonSerializer.Serialize(document, serializeOptions));
-            return "Hi!";
+            return await JsRuntime.InvokeAsync<string>("DBAccess.insert", DatabaseName, Name, JsonSerializer.Serialize(document, serializeOptions));
         }
 
         /// <summary>
