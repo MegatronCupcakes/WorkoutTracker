@@ -1,16 +1,23 @@
 ﻿using Microsoft.JSInterop;
+using Microsoft.VisualBasic;
 using System.Text.Json;
+using WorkoutTracker.Models;
 
 namespace WorkoutTracker.DataAccess
 {
     public class IndexedDb
     {
         private IJSRuntime JsRuntime;
-        
-        
-        public bool Initialized { get; private set; }
 
-        public event EventHandler<bool> DbInitialized;
+        private static JsonSerializerOptions serializeOptions = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        };
+
+
+        public bool Initialized { get; private set; } = false;
+
+        public event EventHandler<bool>? DbInitialized;
         public virtual void OnDbInitialized(bool IsInitialized)
         {
             DbInitialized?.Invoke(this, IsInitialized);
@@ -24,14 +31,12 @@ namespace WorkoutTracker.DataAccess
         public List<string>? IndexedFields { get; set; }
         public IndexedDb(IJSRuntime jsruntime, string name)
         {
-            Initialized = false;
             JsRuntime = jsruntime;
             Name = name;
             Init();
         }
         public IndexedDb(IJSRuntime jsruntime, string name, int? version, List<string>? indexedFields)
         {
-            Initialized = false;
             JsRuntime = jsruntime;
             Name = name;
             Version = version;
@@ -40,8 +45,8 @@ namespace WorkoutTracker.DataAccess
         }
         private async void Init()
         {
-            bool _isInitialized = await JsRuntime.InvokeAsync<bool>("DBAccess.init", DatabaseName, Name, Version, IndexedFields);
-            OnDbInitialized(_isInitialized);
+            Initialized = await JsRuntime.InvokeAsync<bool>("DBAccess.init", DatabaseName, Name, Version, IndexedFields);
+            OnDbInitialized(Initialized);
         }
 
         // Implement Mongo-like methods....
@@ -53,7 +58,15 @@ namespace WorkoutTracker.DataAccess
         /// <returns>_id</returns>
         public async Task<string> Insert(string document)
         {
-            return await JsRuntime.InvokeAsync<string>("DBAccess.insert", DatabaseName, Name, document);
+            await JsRuntime.InvokeVoidAsync("console.log", "DERP!");
+            //return await JsRuntime.InvokeAsync<string>("DBAccess.insert", DatabaseName, Name, document);
+            return "DERP DERP DERP";
+        }
+        public async Task<string> Insert(object document)
+        {
+            await JsRuntime.InvokeVoidAsync("console.log", $"IndexedDb.Insert: document type: {JsonSerializer.Serialize(document, serializeOptions)}");
+            //return await JsRuntime.InvokeAsync<string>("DBAccess.insert", DatabaseName, Name, JsonSerializer.Serialize(document, serializeOptions));
+            return "Hi!";
         }
 
         /// <summary>
@@ -62,9 +75,29 @@ namespace WorkoutTracker.DataAccess
         /// <param name="query"></param>
         /// <param name="update"></param>
         /// <returns>updated boolean</returns>
-        public async Task<bool> Update<T>(string query, string update)
+        public async Task<bool> Update(string query, string update)
         {
             return await JsRuntime.InvokeAsync<bool>("DBAccess.update", DatabaseName, Name, query, update);
+        }
+        public async Task<bool> Update(string query, object update)
+        {            
+            return await JsRuntime.InvokeAsync<bool>(
+                "DBAccess.update", 
+                DatabaseName, 
+                Name, 
+                query, 
+                JsonSerializer.Serialize(update, serializeOptions)
+                );
+        }
+        public async Task<bool> Update(object query, object update)
+        {
+            return await JsRuntime.InvokeAsync<bool>(
+                "DBAccess.update", 
+                DatabaseName, 
+                Name, 
+                JsonSerializer.Serialize(query, serializeOptions), 
+                JsonSerializer.Serialize(update, serializeOptions)
+                );
         }
 
         /// <summary>
@@ -75,6 +108,10 @@ namespace WorkoutTracker.DataAccess
         public async Task<bool> Remove(string query)
         {
             return await JsRuntime.InvokeAsync<bool>("DBAccess.remove", DatabaseName, Name, query);
+        }
+        public async Task<bool> Remove(object query)
+        {
+            return await JsRuntime.InvokeAsync<bool>("DBAccess.remove", DatabaseName, Name, JsonSerializer.Serialize(query, serializeOptions));
         }
 
         /// <summary>
@@ -87,6 +124,10 @@ namespace WorkoutTracker.DataAccess
         {
             return await JsRuntime.InvokeAsync<T>("DBAccess.findOne", DatabaseName, Name, query);
         }
+        public async Task<T> FindOne<T>(object query)
+        {
+            return await JsRuntime.InvokeAsync<T>("DBAccess.findOne", DatabaseName, Name, JsonSerializer.Serialize(query, serializeOptions));
+        }
 
         /// <summary>
         /// Find all documents matching search criteria.
@@ -98,6 +139,9 @@ namespace WorkoutTracker.DataAccess
         {
             return await JsRuntime.InvokeAsync<T>("DBAccess.find", DatabaseName, Name, query);
         }
-        
+        public async Task<T> Find<T>(object query)
+        {
+            return await JsRuntime.InvokeAsync<T>("DBAccess.find", DatabaseName, Name, JsonSerializer.Serialize(query, serializeOptions));
+        }
     }
 }
