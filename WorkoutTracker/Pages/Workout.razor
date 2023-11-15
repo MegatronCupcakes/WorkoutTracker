@@ -1,7 +1,7 @@
 ﻿@page "/"
 @inject IJSRuntime js;
 @using WorkoutTracker.DataAccess;
-@using WorkoutTracker.Types;
+@using WorkoutTracker.Models;
 
 <div class="container">
     <h3>Workout</h3>
@@ -27,21 +27,27 @@
 </div>
 
 @code {
-    private static List<Program> programs = new List<Program>();
+    private IndexedDb? indexedDb;
+    private List<Program> programs = new List<Program>();
 
     protected override void OnAfterRender(bool firstRender)
     {
-        if(firstRender)
+        if (firstRender)
         {
-            var indexedDb = new IndexedDb(js, "programs");
+            indexedDb = new IndexedDb(js, "programs");
             indexedDb.DbInitialized += indexedDb_DbInitialized;
-        }        
+        }
     }
 
-    private async void indexedDb_DbInitialized(object sender, bool Initialized)
+    private void indexedDb_DbInitialized(object sender, bool Initialized)
     {
-        IndexedDb indexedDb = (IndexedDb)sender;
-        var query = @"{""active"": true}";
+        indexedDb = (IndexedDb)sender;
+        RefreshUi();
+    }
+
+    public async void RefreshUi()
+    {
+        var query = new Dictionary<string, bool>() { { "active", true } };
         programs = await indexedDb.Find<List<Program>>(query);
         StateHasChanged();
     }
