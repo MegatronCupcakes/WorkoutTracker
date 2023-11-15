@@ -27,7 +27,7 @@ namespace WorkoutTracker.DataAccess
         // Ideally DatabaseName is defined in configuration
         private string DatabaseName = "WorkoutTracker";
         public string Name { get; set; }
-        public int? Version { get; set; }
+        
         public List<string>? IndexedFields { get; set; }
         public IndexedDb(IJSRuntime jsruntime, string name)
         {
@@ -38,14 +38,13 @@ namespace WorkoutTracker.DataAccess
         public IndexedDb(IJSRuntime jsruntime, string name, int? version, List<string>? indexedFields)
         {
             JsRuntime = jsruntime;
-            Name = name;
-            Version = version;
+            Name = name;            
             IndexedFields = indexedFields;
             Init();
         }
         private async void Init()
         {
-            Initialized = await JsRuntime.InvokeAsync<bool>("DBAccess.init", DatabaseName, Name, Version, IndexedFields);
+            Initialized = await JsRuntime.InvokeAsync<bool>("DBAccess.init", DatabaseName, Name, IndexedFields);
             OnDbInitialized(Initialized);
         }
 
