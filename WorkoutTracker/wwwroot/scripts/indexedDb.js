@@ -74,13 +74,13 @@ const DBAccess = {
     },
     insert: function(databaseName, objectStoreName, document){
         return new Promise(async (resolve, reject) => {
-            console.log(`DBAccess.insert: ${document}`);
             if (typeof document === 'string') document = JSON.parse(document);
             // if document._id is provided and not already used, use the provided value; otherwise generate a new value.
             const _keyIsUnique = document._id && (await this.findOne(databaseName, objectStoreName, { _id: document._id })) == null;
             const _request = _db(databaseName, objectStoreName, 'readwrite').add({
                 _id: _keyIsUnique ? document._id : crypto.randomUUID(),
-                ...document
+                ...document,
+                createdAt: new Date()
             });
             _request.onerror = error => reject(error);
             _request.onsuccess = () => {
@@ -100,6 +100,7 @@ const DBAccess = {
                         let _updatedDocument = _updateDocument(_matchingDocument, updateObject);
                         // disallow updating the _id property by setting it back to its pre-update value.
                         _updatedDocument._id = _matchingDocument._id;
+                        _updatedDocument.updatedAt = new Date();
                         const _updateRequest = _db(databaseName, objectStoreName, 'readwrite').put(_updatedDocument);
                         _updateRequest.onerror = error => _reject();
                         _updateRequest.onsuccess = () => _resolve();
@@ -158,10 +159,15 @@ const DBAccess = {
     remove: (databaseName, objectStoreName, searchObject) => {
         // currently restricted to remove single record by _id only.
         return new Promise((resolve, reject) => {
-            if (typeof searchObject === 'string') searchObject = JSON.parse(searchObject);
-            const _request = _db(databaseName, objectStoreName, 'readwrite').delete(searchObject._id);
-            _request.onerror = error => reject(error);
-            _request.onsuccess = () => resolve(_request.result);
+            try {
+                if (typeof searchObject === 'string') searchObject = JSON.parse(searchObject);
+                if (!searchObject._id) resolve(false);
+                const _request = _db(databaseName, objectStoreName, 'readwrite').delete(searchObject._id);
+                _request.onerror = error => resolve(false);
+                _request.onsuccess = () => resolve(true);
+            } catch (error) {
+                reject(error);
+            }            
         });
 
     }
