@@ -1,6 +1,4 @@
-﻿using WorkoutTracker.Models;
-
-namespace WorkoutTracker.Types
+﻿namespace WorkoutTracker.Models
 {
     /// <summary>
     /// 
@@ -12,6 +10,7 @@ namespace WorkoutTracker.Types
     public class Exercise : ActivityBase
     {
         public string? Notes {  get; set; }
+        public Exercise() { }
         public Exercise(string id, string name, string? notes)
         {
             _id = id;
