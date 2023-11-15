@@ -1,4 +1,7 @@
-﻿@using WorkoutTracker.Models;
+﻿@using System.Text.Json;
+@using WorkoutTracker.DataAccess;
+@using WorkoutTracker.Models;
+@using WorkoutTracker.Forms;
 
 <button class="@GetButtonClasses()" data-bs-toggle="modal" data-bs-target="#@GetModalId()">@Activity</button>
 <div id="@GetModalId()" class="modal modal-lg fade" tabIndex="-1" data-bs-backdrop="static">
@@ -8,16 +11,43 @@
                 <h5 class="modal-title">@GetTitle()</h5>
                 <button type="button" class="btn-close" data-bs-toggle="modal" data-bs-target="#@GetModalId()" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
-                <p>modal body</p>
-                <p>ModalId: @GetModalId()</p>
-                <p>ModalTitle: @GetTitle()</p>
-                <p>Type: @Type</p>
-                <p>Activity: @Activity</p>
-                <p>ButtonClasses: @GetButtonClasses()</p>
+            <div class="modal-body">                
+                @if(Activity == "delete")
+                {
+                    <div class="col-12">
+                        are you sure you want to delete "@GetTitle()" permanently?
+                    </div>
+                } 
+                else
+                {
+                    @if (Type == "Program")
+                    {
+                        <ProgramForm Document="@Document" ChangeDocument="@SetChangeDocument()" />
+                    }
+                    @if (Type == "Routine")
+                    {
+                        <RoutineForm Document="@Document" ChangeDocument="@SetChangeDocument()" />
+                    }
+                    @if (Type == "Exercise")
+                    {
+                        <ExerciseForm Document="@Document" ChangeDocument="@SetChangeDocument()" />
+                    }
+                }
             </div>
             <div class="modal-footer">
-                modal footer
+                <button class="btn btn-sm btn-default" data-bs-toggle="modal" data-bs-target="#@GetModalId()">cancel</button>
+                @if(Activity == "delete")
+                {
+                    <button class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#@GetModalId()" onclick="@HandleDelete">delete</button>
+                } 
+                else if(Activity == "edit")
+                {
+                    <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#@GetModalId()" onclick="@HandleUpdate">save</button>
+                }
+                else if(Activity == "add")
+                {
+                    <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#@GetModalId()" onclick="@HandleInsert">save</button>
+                }                
             </div>
         </div>
     </div>
@@ -25,12 +55,44 @@
 
 @code {
     [Parameter]
+    public IndexedDb IndexedDb { get; set; }
+    [Parameter]
     public ActivityBase? Document { get; set; }
     [Parameter]
-    public string? Type { get; set; }
+    public string Type { get; set; }
     [Parameter]
     public string Activity { get; set; } = "add";
+    [Parameter]
+    public Action? HandleStateChange { get; set; }
 
+    public dynamic? ChangeDocument { get; set; }
+
+    private ActivityBase SetChangeDocument()
+    {
+        if(Document == null)
+        {
+            switch (Type)
+            {
+                case "Program":
+                    ChangeDocument = new Program();
+                    break;
+                case "Routine":
+                    ChangeDocument = new Routine();
+                    break;
+                case "Exercise":
+                    ChangeDocument = new Exercise();
+                    break;
+                default:
+                    ChangeDocument = new ActivityBase();
+                    break;
+            }
+        } 
+        else
+        {
+            ChangeDocument = Document;
+        }
+        return ChangeDocument;
+    }
     private string GetModalId()
     {
         string modalId = $"{Activity}_modal";
@@ -61,15 +123,40 @@
 
     private string GetTitle()
     {
-        string title = "new activity";
-        if (Type != null)
-        {
-            title = $"Add New {Type}";
-        }
+        string title = $"Add New {Type}";
         if (Document != null)
         {
             title = Document.Name;
         }
         return title;
+    }
+
+    private void RefreshUi()
+    {
+        HandleStateChange?.Invoke();
+    }
+
+    private async Task<string> HandleInsert()
+    {
+        var documentId = await IndexedDb.Insert(ChangeDocument);
+        RefreshUi();
+        return documentId;
+    }
+
+    private async Task<bool> HandleUpdate()
+    {        
+        var queryDictionary = new Dictionary<string, string>() { { "_id", Document._id } };
+        var updateDictionary = new Dictionary<string, ActivityBase>() { { "$set", ChangeDocument } };        
+        var updated = await IndexedDb.Update(queryDictionary, updateDictionary);
+        RefreshUi();
+        return updated;
+    }
+
+    private async Task<bool> HandleDelete()
+    {
+        var queryDictionary = new Dictionary<string, string>() { { "_id", Document._id } };
+        var deleted = await IndexedDb.Remove(queryDictionary);
+        RefreshUi();
+        return deleted;
     }
 }

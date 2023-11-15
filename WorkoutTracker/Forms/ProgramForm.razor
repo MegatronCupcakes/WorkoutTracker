@@ -1,0 +1,26 @@
+﻿@using WorkoutTracker.Models;
+
+<h3>ProgramForm</h3>
+<div class="col-12">
+    <label for="nameInput" class="form-label">name</label>
+    <input type="text" class="form-control" id="nameInput" placeholder="@Document?.Name" @oninput="@UpdateName"/>
+</div>
+<div class="col-12">
+    <label for="routinesInput" class="form-label">routines</label>
+    <input type="text" class="form-control" id="routinesInput" placeholder="" />
+</div>
+
+@code {
+    [Parameter]
+    public ActivityBase? Document { get; set; }
+    [Parameter]
+    public ActivityBase ChangeDocument { get; set; }
+
+    public string? Name { get; set; }
+    public string[]? Routines { get; set; }
+
+    private void UpdateName(ChangeEventArgs e)
+    {
+        ChangeDocument.Name = e.Value.ToString();
+    }
+}
