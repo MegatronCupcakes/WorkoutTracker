@@ -10,6 +10,7 @@
     public class Exercise : ActivityBase
     {
         public string? Notes {  get; set; }
+        public string? WeightUnits { get; set; }
         public Exercise() { }
         public Exercise(string id, string name, string? notes)
         {
@@ -17,5 +18,6 @@
             Name = name;
             Notes = notes;
         }
+
     }
 }
