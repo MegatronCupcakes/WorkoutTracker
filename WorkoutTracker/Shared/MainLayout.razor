@@ -1,4 +1,7 @@
 ﻿@inherits LayoutComponentBase
+@inject IJSRuntime js;
+@using WorkoutTracker.DataAccess;
+@using WorkoutTracker.Models;
 
 <div class="page">
     <div class="sidebar">
@@ -7,7 +10,33 @@
 
     <main>        
         <article class="content px-4">
-            @Body
+            <CascadingValue Value="@Collections">
+                @Body
+            </CascadingValue>
         </article>
     </main>
 </div>
+
+@code {    
+    public Dictionary<string, IndexedDb> Collections { get; set; } = new Dictionary<string, IndexedDb>();
+
+    private string[] CollectionNames = {"programs", "routines", "exercises" };
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            foreach (var name in CollectionNames)
+            {
+                var indexedDb = new IndexedDb(js, name);
+                indexedDb.DbInitialized += indexedDb_DbInitialized;
+            }            
+        }
+    }
+
+    private void indexedDb_DbInitialized(object sender, bool Initialized)
+    {
+        var indexedDb = (IndexedDb)sender;
+        Collections.Add(indexedDb.Name, indexedDb);
+    }
+}

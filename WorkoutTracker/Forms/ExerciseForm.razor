@@ -1,5 +1,25 @@
-﻿<h3>ExerciseForm</h3>
+﻿@using WorkoutTracker.Models;
 
-@code {
+<div class="col-12">
+    <label for="nameInput" class="form-label">name</label>
+    <input type="text" class="form-control" id="nameInput" placeholder="@Document?.Name" @bind="ChangeDocument.Name" />
+</div>
+<div class="col-12">
+    <label for="notesInput" class="form-label">notes</label>
+    <textarea class="form-control" id="notesInput" rows="4" placeholder="@Document?.Notes" @bind="ChangeDocument.Notes" />
+</div>
+<div class="col-12">
+    <label for="weightUnitsInput" class="form-label">weight units</label>
+    <select class="form-select" @bind="ChangeDocument.WeightUnits">
+        <option value="none">none</option>
+        <option value="lbs">lbs</option>
+        <option value="kg">kg</option>        
+    </select>
+</div>
 
+@code {    
+    [Parameter]
+    public Exercise? Document { get; set; }
+    [Parameter]
+    public Exercise ChangeDocument { get; set; }
 }

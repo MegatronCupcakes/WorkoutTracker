@@ -1,8 +1,56 @@
 ﻿@page "/exercises"
+@using WorkoutTracker.DataAccess;
+@using WorkoutTracker.Models;
 
-<h3>Exercises</h3>
-<p>exercises, yo!</p>
+<div class="container">
+    <div class="row">
+        <div class="col-11"><h3>Exercises</h3></div>
+        <div class="col-1">
+            <ModalWindow Type="Exercise" Activity="add" HandleStateChange="@RefreshUi" />
+        </div>
+        <div class="col-12">
+            <p>exercises, yo!</p>
+        </div>
+    </div>
+
+    <div class="col-12">
+        @foreach (var document in documents)
+        {
+            <div class="row listing">
+                <div class="col-4">@document.Name</div>
+                <div class="col-1">
+                    <ModalWindow Type="Exercise" Activity="edit" Document="@document" HandleStateChange="@RefreshUi" />
+                </div>
+                <div class="col-1">
+                    <ModalWindow Type="Exercise" Activity="delete" Document="@document" HandleStateChange="@RefreshUi" />
+                </div>
+            </div>
+        }
+    </div>
+</div>
 
 @code {
+    [CascadingParameter]
+    public Dictionary<string, IndexedDb> Collections { get; set; }
 
+    private List<Exercise> documents = new List<Exercise>();
+
+    protected override async void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            while (!Collections.ContainsKey("exercises") || !Collections["exercises"].Initialized)
+            {
+                await Task.Delay(25);
+            }
+            RefreshUi();
+        }
+    }
+
+    public async void RefreshUi()
+    {
+        var query = @"{}";
+        documents = await Collections["exercises"].Find<List<Exercise>>(query);
+        StateHasChanged();
+    }
 }

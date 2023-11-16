@@ -1,5 +1,4 @@
 ﻿@page "/programs"
-@inject IJSRuntime js;
 @using WorkoutTracker.DataAccess;
 @using WorkoutTracker.Models;
 
@@ -7,7 +6,7 @@
     <div class="row">
         <div class="col-11"><h3>Programs</h3></div>
         <div class="col-1">
-            <ModalWindow Type="Program" Activity="add" IndexedDb="@indexedDb" HandleStateChange="@RefreshUi" />
+            <ModalWindow Type="Program" Activity="add" HandleStateChange="@RefreshUi" />
         </div>
         <div class="col-12">
             <p>programs, yo!</p>
@@ -15,15 +14,15 @@
     </div>
 
     <div class="col-12">
-        @foreach (var program in programs)
+        @foreach (var document in documents)
         {
             <div class="row listing">
-                <div class="col-4">@program.Name</div>
+                <div class="col-4">@document.Name</div>
                 <div class="col-1">
-                    <ModalWindow Type="Program" Activity="edit" Document="@program" IndexedDb="@indexedDb" HandleStateChange="@RefreshUi" />
+                    <ModalWindow Type="Program" Activity="edit" Document="@document" HandleStateChange="@RefreshUi" />
                 </div>
                 <div class="col-1">
-                    <ModalWindow Type="Program" Activity="delete" Document="@program" IndexedDb="@indexedDb" HandleStateChange="@RefreshUi" />
+                    <ModalWindow Type="Program" Activity="delete" Document="@document" HandleStateChange="@RefreshUi" />
                 </div>                
             </div>
         }
@@ -31,28 +30,26 @@
 </div>
 
 @code {
-    private IndexedDb? indexedDb;
-    private List<Program> programs = new List<Program>();
+    [CascadingParameter]
+    public Dictionary<string, IndexedDb> Collections { get; set; }
+    private List<Program> documents = new List<Program>();
 
-    protected override void OnAfterRender(bool firstRender)
+    protected override async void OnAfterRender(bool firstRender)
     {
         if (firstRender)
         {
-            indexedDb = new IndexedDb(js, "programs");
-            indexedDb.DbInitialized += indexedDb_DbInitialized;
+            while (!Collections.ContainsKey("programs") || !Collections["programs"].Initialized)
+            {
+                await Task.Delay(25);
+            }
+            RefreshUi();
         }
-    }
-
-    private void indexedDb_DbInitialized(object sender, bool Initialized)
-    {
-        indexedDb = (IndexedDb)sender;
-        RefreshUi();
     }
 
     public async void RefreshUi()
     {
         var query = @"{}";
-        programs = await indexedDb.Find<List<Program>>(query);
+        documents = await Collections["programs"].Find<List<Program>>(query);
         StateHasChanged();
     }
 }

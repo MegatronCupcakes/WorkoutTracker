@@ -22,15 +22,18 @@
                 {
                     @if (Type == "Program")
                     {
-                        <ProgramForm Document="@Document" ChangeDocument="@SetChangeDocument()" />
+                        @(ChangeDocument = Document == null ? new Program() : Document)
+                        <ProgramForm Document="@((Program)Document)" ChangeDocument="@ChangeDocument" />
                     }
                     @if (Type == "Routine")
                     {
-                        <RoutineForm Document="@Document" ChangeDocument="@SetChangeDocument()" />
+                        @(ChangeDocument = Document == null ? new Routine() : Document)
+                        <RoutineForm Document="@((Routine)Document)" ChangeDocument="@ChangeDocument" />
                     }
                     @if (Type == "Exercise")
                     {
-                        <ExerciseForm Document="@Document" ChangeDocument="@SetChangeDocument()" />
+                        @(ChangeDocument = Document == null ? new Exercise() : Document)
+                        <ExerciseForm Document="@((Exercise)Document)" ChangeDocument="@ChangeDocument" />
                     }
                 }
             </div>
@@ -54,8 +57,8 @@
 </div>
 
 @code {
-    [Parameter]
-    public IndexedDb IndexedDb { get; set; }
+    [CascadingParameter]
+    public Dictionary<string, IndexedDb> Collections { get; set; }
     [Parameter]
     public ActivityBase? Document { get; set; }
     [Parameter]
@@ -67,32 +70,11 @@
 
     public dynamic? ChangeDocument { get; set; }
 
-    private ActivityBase SetChangeDocument()
+    private string GetCollectionName()
     {
-        if(Document == null)
-        {
-            switch (Type)
-            {
-                case "Program":
-                    ChangeDocument = new Program();
-                    break;
-                case "Routine":
-                    ChangeDocument = new Routine();
-                    break;
-                case "Exercise":
-                    ChangeDocument = new Exercise();
-                    break;
-                default:
-                    ChangeDocument = new ActivityBase();
-                    break;
-            }
-        } 
-        else
-        {
-            ChangeDocument = Document;
-        }
-        return ChangeDocument;
+        return $"{(Document == null ? Type.ToLower() : Document.GetType().ToString().Split('.').Last())}s";
     }
+
     private string GetModalId()
     {
         string modalId = $"{Activity}_modal";
@@ -132,22 +114,23 @@
     }
 
     private void RefreshUi()
-    {
+    {        
         HandleStateChange?.Invoke();
     }
 
     private async Task<string> HandleInsert()
     {
-        var documentId = await IndexedDb.Insert(ChangeDocument);
+        var documentId = await Collections[GetCollectionName()].Insert(ChangeDocument);
         RefreshUi();
         return documentId;
     }
 
     private async Task<bool> HandleUpdate()
-    {        
+    {
+        dynamic updateDictionary;
         var queryDictionary = new Dictionary<string, string>() { { "_id", Document._id } };
-        var updateDictionary = new Dictionary<string, ActivityBase>() { { "$set", ChangeDocument } };        
-        var updated = await IndexedDb.Update(queryDictionary, updateDictionary);
+        updateDictionary = new Dictionary<string, object>() { { "$set", ChangeDocument } };        
+        var updated = await Collections[GetCollectionName()].Update(queryDictionary, updateDictionary);
         RefreshUi();
         return updated;
     }
@@ -155,7 +138,7 @@
     private async Task<bool> HandleDelete()
     {
         var queryDictionary = new Dictionary<string, string>() { { "_id", Document._id } };
-        var deleted = await IndexedDb.Remove(queryDictionary);
+        var deleted = await Collections[GetCollectionName()].Remove(queryDictionary);
         RefreshUi();
         return deleted;
     }

@@ -1,5 +1,4 @@
 ﻿@page "/"
-@inject IJSRuntime js;
 @using WorkoutTracker.DataAccess;
 @using WorkoutTracker.Models;
 
@@ -8,17 +7,17 @@
     <p>perform a workout, yo!</p>
 
     <div class="col-12">
-        @if(programs.Count == 0)
+        @if (documents.Count == 0)
         {
             <div>you don't have any active workouts</div>
         }
         else
         {
-            @foreach (var program in programs)
+            @foreach (var document in documents)
             {
                 <div class="row listing">
                     <div class="row">
-                        <div class="col-4">@program.Name</div>
+                        <div class="col-4">@document.Name</div>
                     </div>
                 </div>
             }
@@ -27,28 +26,26 @@
 </div>
 
 @code {
-    private IndexedDb? indexedDb;
-    private List<Program> programs = new List<Program>();
+    [CascadingParameter]
+    public Dictionary<string, IndexedDb> Collections { get; set; }
+    private List<Program> documents = new List<Program>();
 
-    protected override void OnAfterRender(bool firstRender)
+    protected override async void OnAfterRender(bool firstRender)
     {
         if (firstRender)
         {
-            indexedDb = new IndexedDb(js, "programs");
-            indexedDb.DbInitialized += indexedDb_DbInitialized;
+            while (!Collections.ContainsKey("programs") || !Collections["programs"].Initialized)
+            {
+                await Task.Delay(25);
+            }
+            RefreshUi();
         }
-    }
-
-    private void indexedDb_DbInitialized(object sender, bool Initialized)
-    {
-        indexedDb = (IndexedDb)sender;
-        RefreshUi();
     }
 
     public async void RefreshUi()
     {
-        var query = new Dictionary<string, bool>() { { "active", true } };
-        programs = await indexedDb.Find<List<Program>>(query);
+        var query = @"{}";
+        documents = await Collections["programs"].Find<List<Program>>(query);
         StateHasChanged();
     }
 

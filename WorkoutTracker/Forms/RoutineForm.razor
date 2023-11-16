@@ -1,5 +1,20 @@
-﻿<h3>RoutineForm</h3>
+﻿@using WorkoutTracker.Models;
+@using WorkoutTracker.DataAccess;
+
+<div class="col-12">
+    <label for="nameInput" class="form-label">name</label>
+    <input type="text" class="form-control" id="nameInput" placeholder="@Document?.Name" @bind="ChangeDocument.Name" />
+</div>
+<div class="col-12">
+    <label for="exerciseInput" class="form-label">exercises</label>
+
+</div>
 
 @code {
-
+    [CascadingParameter]
+    public Dictionary<string, IndexedDb> Collections { get; set; }
+    [Parameter]
+    public Routine? Document { get; set; }
+    [Parameter]
+    public Routine ChangeDocument { get; set; }
 }
