@@ -46,16 +46,25 @@ const DBAccess = {
                     .sort((a, b) => b - a);                
                 // request most recent version
                 let version = _dbVersions[0];
-                if (window._databases[databaseName]) {
-                    _database = window._databases[databaseName];
-                    const _names = Object.keys(_database.objectStoreNames).map(key => _database.objectStoreNames[key]);
-                    if (_names.indexOf(objectStoreName) == -1) {
-                        // object store not found; indicate upgrade needed by incrementing version number
-                        ++version;
+
+                // determine if we need to create a new ObjectStore via upgrade
+                version = await new Promise((_resolve, _reject) => {
+                    const _upgradeQueryRequest = window.indexedDB.open(databaseName, version);
+                    _upgradeQueryRequest.onsuccess = (event) => {
+                        _database = event.target.result;
+                        const _names = Object.keys(_database.objectStoreNames).map(key => _database.objectStoreNames[key]);
+                        if (_names.indexOf(objectStoreName) == -1) {
+                            // object store not found; indicate upgrade needed by incrementing version number
+                            ++version;
+                        }
+                        _database.close();
+                        _resolve(version);
                     }
-                }                
+                    _upgradeQueryRequest.onerror = (_error) => _reject(_error);
+                });
+                                
                 const _openRequest = window.indexedDB.open(databaseName, version);
-                _openRequest.onupgradeneeded = (event) => {                    
+                _openRequest.onupgradeneeded = (event) => {
                     // an ObjectStore can only be created from an onupgradeneeded event
                     const _upgradeTransaction = event.target.transaction;
                     _createObjectStore(event.target.result, objectStoreName, indexFieldArray);
@@ -274,8 +283,7 @@ const _queryEvaluator = (searchObject) => {
                 break;
             case '$type':
                 return _testRecord => {
-                    const [_searchValue, _testedValue] = _getValues(_searchObject, _testRecord, _key, _parentKeys);
-                    console.log(`_testRecord: ${JSON.stringify(_testRecord)} searchObject: ${JSON.stringify(searchObject)} _key: ${_key}, _parentKeys: ${JSON.stringify(_parentKeys)} _searchValue: ${_searchValue} _testedValue: ${_testedValue}`);
+                    const [_searchValue, _testedValue] = _getValues(_searchObject, _testRecord, _key, _parentKeys);                    
                     return typeof _testedValue === _searchValue;
                 }
             // Evaluation Query Operators
@@ -297,7 +305,6 @@ const _queryEvaluator = (searchObject) => {
                         }
                     };
                     const valuesFromKeys = _expressionKeys.map(key => _getValuesFromExpressionKeys({ ..._testRecord }, key));
-                    console.log(`valuesFromKeys[0]: ${valuesFromKeys[0]} valuesFromKeys[1]: ${valuesFromKeys[1]}`);
                     switch (_expressionOperator) {
                         case '$eq':
                             return valuesFromKeys[0] == valuesFromKeys[1];
@@ -329,10 +336,11 @@ const _queryEvaluator = (searchObject) => {
                     }
                 }
             case '$regex':
-                console.log(`_testRecord: ${JSON.stringify(_testRecord)} searchObject: ${JSON.stringify(searchObject)} _key: ${_key}, _parentKeys: ${JSON.stringify(_parentKeys)} _searchValue: ${JSON.stringify(_searchValue)} _testedValue: ${JSON.stringify(_testedValue)}`);
-                const [_searchValue, _testedValue] = _getValues(_searchObject, _testRecord, _key, _parentKeys);
-                const _parentKey = _parentKeys[_parentKeys.length - 1];
-                Object.keys(_searchValue)
+                //console.log(`_testRecord: ${JSON.stringify(_testRecord)} searchObject: ${JSON.stringify(searchObject)} _key: ${_key}, _parentKeys: ${JSON.stringify(_parentKeys)} _searchValue: ${JSON.stringify(_searchValue)} _testedValue: ${JSON.stringify(_testedValue)}`);
+                //const [_searchValue, _testedValue] = _getValues(_searchObject, _testRecord, _key, _parentKeys);
+                //const _parentKey = _parentKeys[_parentKeys.length - 1];
+                //Object.keys(_searchValue)
+                break;
             case '$text':
                 break;
             case '$where':
