@@ -2,41 +2,91 @@
 @inject IJSRuntime js;
 @using WorkoutTracker.DataAccess;
 @using WorkoutTracker.Models;
+@using WorkoutTracker.Pages
 
 <div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+    <NavMenu DisplayPage="@DisplayPage" HandleUiChange="@HandleUiChange" />
 
-    <main>        
+    <main>
+        <div id="contentSpacer" style="height: 5em; width: 100%;"></div>
         <article class="content px-4">
-            <CascadingValue Value="@Collections">
-                @Body
-            </CascadingValue>
+            @if (DbInitializationComplete)
+            {
+                <CascadingValue Value="@Collections">
+                    @switch (DisplayPage["activePage"])
+                    {                        
+                        case "about":
+                            <About />
+                            break;
+                        case "exercises":
+                            <Exercises />
+                            break;
+                        case "export":
+                            <Export />
+                            break;
+                        case "import":
+                            <Import />
+                            break;
+                        case "metrics":
+                            <Metrics />
+                            break;
+                        case "programs":
+                            <Programs />
+                            break;
+                        case "routines":
+                            <Routines />
+                            break;
+                        case "workout":
+                            <Workout />
+                            break;
+                        default:
+                            <Workout />
+                            break;
+                    }
+                </CascadingValue>
+            }            
         </article>
     </main>
 </div>
 
-@code {    
+@code {
+    public Dictionary<string, string> DisplayPage { get; set; } = new Dictionary<string, string>() { { "activePage", "workout" } };
     public Dictionary<string, IndexedDb> Collections { get; set; } = new Dictionary<string, IndexedDb>();
-
-    private string[] CollectionNames = {"programs", "routines", "exercises" };
-
+    private bool DbInitializationComplete { get; set; } = false;
+    private static List<string> CollectionNames = new List<string>() { "programs", "routines", "exercises" };
+    private Queue<string> CollectionInitQueue = new Queue<string>(CollectionNames);
     protected override void OnAfterRender(bool firstRender)
     {
         if (firstRender)
         {
-            foreach (var name in CollectionNames)
-            {
-                var indexedDb = new IndexedDb(js, name);
-                indexedDb.DbInitialized += indexedDb_DbInitialized;
-            }            
+            InitializeFromQueue();
         }
+    }
+
+    private void InitializeFromQueue()
+    {
+        var collectionName = CollectionInitQueue.Dequeue();
+        var indexedDb = new IndexedDb(js, collectionName);
+        indexedDb.DbInitialized += indexedDb_DbInitialized;
+    }
+
+    private async void HandleUiChange()
+    {              
+        StateHasChanged();
     }
 
     private void indexedDb_DbInitialized(object sender, bool Initialized)
     {
         var indexedDb = (IndexedDb)sender;
         Collections.Add(indexedDb.Name, indexedDb);
+        if (CollectionInitQueue.Count > 0)
+        {
+            InitializeFromQueue();
+        } 
+        else
+        {
+            DbInitializationComplete = true;
+            HandleUiChange();
+        }
     }
 }

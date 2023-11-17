@@ -1,5 +1,4 @@
-﻿@page "/programs"
-@using WorkoutTracker.DataAccess;
+﻿@using WorkoutTracker.DataAccess;
 @using WorkoutTracker.Models;
 
 <div class="container">
@@ -34,14 +33,10 @@
     public Dictionary<string, IndexedDb> Collections { get; set; }
     private List<Program> documents = new List<Program>();
 
-    protected override async void OnAfterRender(bool firstRender)
+    protected override void OnAfterRender(bool firstRender)
     {
         if (firstRender)
         {
-            while (!Collections.ContainsKey("programs") || !Collections["programs"].Initialized)
-            {
-                await Task.Delay(25);
-            }
             RefreshUi();
         }
     }

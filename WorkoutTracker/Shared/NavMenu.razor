@@ -1,64 +1,60 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
+﻿<nav class="navbar navbar-dark bg-dark fixed-top">
     <div class="container-fluid">
-        <a class="navbar-brand" href="">WorkoutTracker</a>
-        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
+        <a class="navbar-brand"><span>WorkoutTracker</span></a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#navbarContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
-        </button>
+        </button>                
+        <div class="offcanvas offcanvas-end text-bg-dark" tabindex="-1" id="navbarContent" data-bs-scroll="true">
+            <div class="offcanvas-header">
+                <h5 class="offcanvas-title" id="offcanvasNavbarLabel">
+                    WorkoutTracker
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+            </div>
+            <div class="offcanvas-body">
+                <ul class="navbar-nav justify-content-end flex-grow-1 pe-3">
+                    @foreach (KeyValuePair<string, string> pageEntry in PageDictionary)
+                    {
+                        <li class="nav-item">
+                            <a class="nav-link@(pageEntry.Key == DisplayPage["activePage"] ? " active" : "")" onclick="@(() => HandleNavClick(pageEntry.Key))" data-bs-dismiss="offcanvas">
+                                <img class="nav-svg" src="@pageEntry.Value" />@CapitalizePageName(pageEntry.Key)
+                            </a>
+                        </li>
+                    }
+                </ul>
+            </div>
+        </div>                
     </div>
-</div>
+</nav>
 
-<div class="@NavMenuCssClass" @onclick="ToggleNavMenu">
-    <nav class="flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span><img src="noun-weightlifting-533272.svg" class="nav-svg" /></span> Perform Workout
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="metrics">
-                <span><img src="noun-graph-6237006.svg" class="nav-svg" /></span> Track Workouts
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="programs">                
-                <span><img src="noun-collection-2221169.svg" class="nav-svg" /></span> Programs
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="routines">
-                <span><img src="noun-collection-2221168.svg" class="nav-svg" /></span> Routines
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="exercises">                
-                <span><img src="noun-weight-976409.svg" class="nav-svg" /></span> Exercises
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="export">
-                <span><img src="noun-exit-792128.svg" class="nav-svg" /></span> Export Data
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="import">
-                <span><img src="noun-exit-793099.svg" class="nav-svg" /></span> Import Data
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="about">
-                <span><img src="noun-about-2479027.svg" class="nav-svg" /></span> About
-            </NavLink>
-        </div>
-    </nav>
-</div>
+
 
 @code {
-    private bool collapseNavMenu = true;
+    [Parameter]
+    public Dictionary<string, string>? DisplayPage { get; set; }
+    [Parameter]
+    public Action? HandleUiChange { get; set; }
 
-    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
-
-    private void ToggleNavMenu()
+    private Dictionary<string, string> PageDictionary { get; set; } = new Dictionary<string, string>()
     {
-        collapseNavMenu = !collapseNavMenu;
+        {"workout", "noun-weightlifting-533272.svg"},
+        {"metrics", "noun-graph-6237006.svg"},
+        {"programs", "noun-collection-2221169.svg"},
+        {"routines", "noun-collection-2221168.svg"},
+        {"exercises", "noun-weight-976409.svg"},
+        {"export", "noun-exit-792128.svg"},
+        {"import", "noun-exit-793099.svg"},
+        {"about", "noun-about-2479027.svg"}
+    };
+    private string CapitalizePageName(string pageName)
+    {
+        return char.ToUpper(pageName[0]) + pageName.Substring(1);
     }
+
+    private async void HandleNavClick(string selection)
+    {        
+        DisplayPage["activePage"] = selection;
+        HandleUiChange?.Invoke();
+    }
+
 }

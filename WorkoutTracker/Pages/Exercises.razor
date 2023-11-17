@@ -1,5 +1,4 @@
-﻿@page "/exercises"
-@using WorkoutTracker.DataAccess;
+﻿@using WorkoutTracker.DataAccess;
 @using WorkoutTracker.Models;
 
 <div class="container">
@@ -35,14 +34,10 @@
 
     private List<Exercise> documents = new List<Exercise>();
 
-    protected override async void OnAfterRender(bool firstRender)
+    protected override void OnAfterRender(bool firstRender)
     {
         if (firstRender)
-        {
-            while (!Collections.ContainsKey("exercises") || !Collections["exercises"].Initialized)
-            {
-                await Task.Delay(25);
-            }
+        {            
             RefreshUi();
         }
     }
