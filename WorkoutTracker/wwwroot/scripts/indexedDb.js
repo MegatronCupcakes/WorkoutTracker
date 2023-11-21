@@ -38,31 +38,36 @@ const DBAccess = {
     init: (databaseName, objectStoreName, indexFieldArray) => {
         return new Promise(async (resolve, reject) => {
             try {                
-                let _database;                            
+                let _database, version;                            
                 if (typeof indexFieldArray === 'string') indexFieldArray = JSON.parse(indexFieldArray);
-                const _dbVersions = (await window.indexedDB.databases())
-                    .filter(dictionary => dictionary.name == databaseName)
-                    .map(dictionary => dictionary.version)
-                    .sort((a, b) => b - a);                
-                // request most recent version
-                let version = _dbVersions[0];
-
-                // determine if we need to create a new ObjectStore via upgrade
-                version = await new Promise((_resolve, _reject) => {
-                    const _upgradeQueryRequest = window.indexedDB.open(databaseName, version);
-                    _upgradeQueryRequest.onsuccess = (event) => {
-                        _database = event.target.result;
-                        const _names = Object.keys(_database.objectStoreNames).map(key => _database.objectStoreNames[key]);
-                        if (_names.indexOf(objectStoreName) == -1) {
-                            // object store not found; indicate upgrade needed by incrementing version number
-                            ++version;
+                const _databases = await window.indexedDB.databases();
+                const _databaseNames = _databases.map(_dbase => _dbase.name);
+                if (_databaseNames.indexOf(databaseName) > -1) {
+                    const _dbVersions = (_databases)
+                        .filter(dictionary => dictionary.name == databaseName)
+                        .map(dictionary => dictionary.version)
+                        .sort((a, b) => b - a);
+                    // request most recent version
+                    version = _dbVersions[0];
+                    // determine if we need to create a new ObjectStore via upgrade
+                    version = await new Promise((_resolve, _reject) => {
+                        const _upgradeQueryRequest = window.indexedDB.open(databaseName, version);
+                        _upgradeQueryRequest.onsuccess = (event) => {
+                            _database = event.target.result;
+                            const _names = Object.keys(_database.objectStoreNames).map(key => _database.objectStoreNames[key]);
+                            if (_names.indexOf(objectStoreName) == -1) {
+                                // object store not found; indicate upgrade needed by incrementing version number
+                                ++version;
+                            }
+                            _database.close();
+                            _resolve(version);
                         }
-                        _database.close();
-                        _resolve(version);
-                    }
-                    _upgradeQueryRequest.onerror = (_error) => _reject(_error);
-                });
-                                
+                        _upgradeQueryRequest.onerror = (_error) => _reject(_error);
+                    });
+                } else {
+                    // no database with databaseName exists, so this will be version 1
+                    version = 1;
+                }                                                
                 const _openRequest = window.indexedDB.open(databaseName, version);
                 _openRequest.onupgradeneeded = (event) => {
                     // an ObjectStore can only be created from an onupgradeneeded event
@@ -82,7 +87,7 @@ const DBAccess = {
                     resolve(true);
                 };                
             } catch (error) {
-                console.error(`DBAccess.init Error: ${error.message}`);
+                console.error(`DBAccess.init Error: ${error.message}; databaseName: "${databaseName}", objectStoreName: ${objectStoreName}, indexFieldArray: "${JSON.stringify(indexFieldArray)}"`);
                 reject(false);
             }
         });
