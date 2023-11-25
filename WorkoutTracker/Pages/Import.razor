@@ -1,6 +1,105 @@
-﻿<h3>Import</h3>
-<p>import data, yo!</p>
+﻿@using System.Text.Json
+@using WorkoutTracker.DataAccess;
+@using WorkoutTracker.Models;
+
+<div class="container fade-in fade-out">
+    <h3>Import</h3>
+    @if (ShowCompletionStatus)
+    {
+        <div class="fade-in fade-out">
+            <div class="col-12 mb-3">
+                <span class="@CompletionStatus["class"]">@CompletionStatus["message"]</span>
+            </div>
+        </div>
+    }
+    else
+    {
+        @if (ShowConfirmImport)
+        {
+            <div class="fade-in fade-out">
+                <div class="col-12 mb-3">
+                    are you absolutely positively 100% sure you want to import this data?  It will replace any existing data already stored....
+                </div>
+                <div class="col-12">
+                    <div class="btn btn-sm btn-outline-default float-end" onclick="@HandleToggleShowConfirm">cancel</div>
+                    <div class="btn btn-sm btn-outline-danger float-end" onclick="@HandleImport">yolo!</div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="fade-in fade-out">
+                <div class="col-12 mb-6">import new data? (WARNING: ALL EXISTING DATA WILL BE PURGED)</div>
+                <div class="col-12">
+                    <div class="mb-3">
+                        <label for="jsonImportFile" class="form-label">json file</label>
+                        <InputFile OnChange="@LoadFile" AdditionalAttributes="@(new Dictionary<string, object>(){{"class", "form-control"},{"id", "jsonImportFile"}})" />
+                    </div>
+                </div>
+                <div class="col-12">
+                    <div class="btn btn-outline-danger float-end" onclick="@HandleToggleShowConfirm">import</div>
+                </div>
+            </div>            
+        }
+    }    
+</div>
 
 @code {
+    [CascadingParameter]
+    public Dictionary<string, IndexedDb> Collections { get; set; }
+    [CascadingParameter]
+    public bool ShowSpinner { get; set; } = false;
+    private bool ShowConfirmImport { get; set; } = false;
+    private bool ShowCompletionStatus { get; set; } = false;
+    private static string CompletionClass = "text-success";
+    private static string CompletionMessage = "data imported successfully!";
+    private Dictionary<string, string> CompletionStatus { get; set; } = new Dictionary<string, string>(){
+        {"class", CompletionClass},
+        {"message", CompletionMessage}
+    };
+    private JsonImport? ImportData { get; set; }
 
+    private async void LoadFile(InputFileChangeEventArgs e)
+    {
+        var options = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            };
+        ImportData = await JsonSerializer.DeserializeAsync<JsonImport>(e.File.OpenReadStream(), options);
+    }
+    private void HandleToggleShowConfirm()
+    {
+        ShowConfirmImport = !ShowConfirmImport;
+        RefreshUi();
+    }
+    private async void HandleImport()
+    {
+        if (ImportData != null)
+        {
+            ShowSpinner = true;
+            RefreshUi();
+            try
+            {
+                // it doesn't actually matter which instance of IndexedDb we use to import....
+                await Collections["workouts"].Import(ImportData);
+                CompletionStatus["class"] = CompletionClass;
+                CompletionStatus["message"] = CompletionMessage;
+            } catch(Exception e)
+            {
+                CompletionStatus["class"] = "text-danger";
+                CompletionStatus["message"] = $"Oops!  Looks like something went wrong ({e.Message})";
+            }            
+            ShowCompletionStatus = !ShowCompletionStatus;
+            ShowConfirmImport = !ShowConfirmImport;
+            ShowSpinner = false;
+            RefreshUi();
+            await Task.Delay(3000);                        
+            ShowCompletionStatus = !ShowCompletionStatus;
+            RefreshUi();
+        }
+    }
+    private void RefreshUi()
+    {
+        StateHasChanged();
+    }
 }

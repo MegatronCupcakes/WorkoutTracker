@@ -1,6 +1,27 @@
-﻿<h3>Export</h3>
-<p>export data, yo!</p>
+﻿@using WorkoutTracker.DataAccess;
+
+<div class="container fade-in fade-out">
+    <h3>Export</h3>
+    <div class="col-12">
+        <table class="table table-borderless">
+            <thead></thead>
+            <tbody>
+                <tr>
+                    <td class="align-middle">export all data</td>
+                    <td><div class="btn btn-outline-success" onclick="@HandleExportClick">export</div></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
 
 @code {
+    [CascadingParameter]
+    public Dictionary<string, IndexedDb> Collections { get; set; }
 
+    private void HandleExportClick()
+    {
+        // it doesn't actually matter which instance of IndexedDb we use to export....
+        Collections["workouts"].Export(new List<string>(Collections.Keys));
+    }
 }
