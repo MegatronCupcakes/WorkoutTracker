@@ -17,7 +17,8 @@
                     {
                         <li class="nav-item">
                             <a class="nav-link@(pageEntry.Key == DisplayPage["activePage"] ? " active" : "")" onclick="@(() => HandleNavClick(pageEntry.Key))" data-bs-dismiss="offcanvas">
-                                <img class="nav-svg" src="@pageEntry.Value" />@CapitalizePageName(pageEntry.Key)
+                                <div class="col-2"><img class="nav-svg" src="@pageEntry.Value" /></div>
+                                <div class="col-10">@CapitalizePageName(pageEntry.Key)</div>
                             </a>
                         </li>
                     }

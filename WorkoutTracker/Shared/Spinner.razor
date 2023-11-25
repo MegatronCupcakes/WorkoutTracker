@@ -1,0 +1,11 @@
+﻿@if(ShowSpinner)
+{
+    <div id="spinnerContainer" class="fade-out">
+        <div class="spinner position-absolute top-50 start-50 translate-middle"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>
+    </div>
+}
+
+@code {
+    [CascadingParameter]
+    public bool ShowSpinner { get; set; } = false;
+}

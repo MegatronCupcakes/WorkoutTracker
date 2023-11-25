@@ -4,56 +4,55 @@
 @using WorkoutTracker.Models;
 @using WorkoutTracker.Pages
 
-<div class="page">
-    <NavMenu DisplayPage="@DisplayPage" HandleUiChange="@HandleUiChange" />
-
-    <main>
+<div class="container-fluid fade-in">    
+    @if (DbInitializationComplete)
+    {
+        <NavMenu DisplayPage="@DisplayPage" HandleUiChange="@HandleUiChange" />
         <div id="contentSpacer" style="height: 5em; width: 100%;"></div>
-        <article class="content px-4">
-            @if (DbInitializationComplete)
+        <CascadingValue Value="@ShowSpinner">
+        <CascadingValue Value="@Collections">
+            <Spinner />
+            @switch (DisplayPage["activePage"])
             {
-                <CascadingValue Value="@Collections">
-                    @switch (DisplayPage["activePage"])
-                    {                        
-                        case "about":
-                            <About />
-                            break;
-                        case "exercises":
-                            <Exercises />
-                            break;
-                        case "export":
-                            <Export />
-                            break;
-                        case "import":
-                            <Import />
-                            break;
-                        case "metrics":
-                            <Metrics />
-                            break;
-                        case "programs":
-                            <Programs />
-                            break;
-                        case "routines":
-                            <Routines />
-                            break;
-                        case "workout":
-                            <Workout />
-                            break;
-                        default:
-                            <Workout />
-                            break;
-                    }
-                </CascadingValue>
-            }            
-        </article>
-    </main>
+                case "about":
+                    <About />
+                    break;
+                case "exercises":
+                    <Exercises />
+                    break;
+                case "export":
+                    <Export />
+                    break;
+                case "import":
+                    <Import />
+                    break;
+                case "metrics":
+                    <Metrics />
+                    break;
+                case "programs":
+                    <Programs />
+                    break;
+                case "routines":
+                    <Routines />
+                    break;
+                case "workout":
+                    <Workout />
+                    break;
+                default:
+                    <Workout />
+                    break;
+            }
+        </CascadingValue>
+        </CascadingValue>
+    }
 </div>
 
 @code {
     public Dictionary<string, string> DisplayPage { get; set; } = new Dictionary<string, string>() { { "activePage", "workout" } };
     public Dictionary<string, IndexedDb> Collections { get; set; } = new Dictionary<string, IndexedDb>();
+    public bool ShowSpinner { get; set; } = false;
     private bool DbInitializationComplete { get; set; } = false;
-    private static List<string> CollectionNames = new List<string>() { "programs", "routines", "exercises" };
+    private static List<string> CollectionNames = new List<string>() { "workouts", "programs", "routines", "exercises" };
     private Queue<string> CollectionInitQueue = new Queue<string>(CollectionNames);
     protected override void OnAfterRender(bool firstRender)
     {
@@ -75,7 +74,7 @@
         StateHasChanged();
     }
 
-    private void indexedDb_DbInitialized(object sender, bool Initialized)
+    private async void indexedDb_DbInitialized(object sender, bool Initialized)
     {
         var indexedDb = (IndexedDb)sender;
         Collections.Add(indexedDb.Name, indexedDb);
