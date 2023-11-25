@@ -9,11 +9,17 @@
     /// </summary>
     public class Routine : ActivityBase
     {
+        public List<RoutineExercise> RoutineExercises { get; set; } = new List<RoutineExercise>();
         public Routine() { }
-        public Routine(string id, string name)
-        {
-            _id = id;
-            Name = name;
-        }
+    }
+
+    public class RoutineExercise : Exercise
+    {
+        public string ExerciseId { get; set; }
+        public int StartingWeight { get; set; } = 0;
+        public int Repetitions { get; set; } = 0;
+        public int Sets { get; set; } = 0;
+        public int MinutesBetweenSets { get; set; } = 0;
+        public RoutineExercise() { }
     }
 }

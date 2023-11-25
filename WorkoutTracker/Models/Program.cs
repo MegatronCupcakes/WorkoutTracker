@@ -1,4 +1,6 @@
-﻿namespace WorkoutTracker.Models
+﻿using WorkoutTracker.DataAccess;
+
+namespace WorkoutTracker.Models
 {
     /// <summary>
     /// 
@@ -10,14 +12,17 @@
     public class Program : ActivityBase
     {
         public bool Active { get; set; } = false;                   
-        public string[] Routines { get; set; } = new string[0];
+        public List<string> RoutineIds { get; set; } = new List<string>();
         public Program() { }
-        public Program(string id, bool active, string name, string[] routines)
+        public async void ToggleActive(IndexedDb programCollection)
         {
-            _id = id;
-            Active = active;
-            Name = name;
-            Routines = routines;
+            if (!Active)
+            {
+                // we're making this program active; de-activate any other active programs.
+                var othersUpdated = await programCollection.Update(new { Active = true }, new Dictionary<string, object>() { { "$set", new { Active = false } } });
+            }
+            var uppdated = await programCollection.Update(new { _id = this._id }, new Dictionary<string, object>() { { "$set", new { Active = !this.Active } } });
+            Active = !this.Active;
         }
     }
 }

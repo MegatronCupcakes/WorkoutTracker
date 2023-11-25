@@ -10,14 +10,9 @@
     public class Exercise : ActivityBase
     {
         public string? Notes {  get; set; }
-        public string? WeightUnits { get; set; }
+        public string WeightUnits { get; set; } = "none";
         public Exercise() { }
-        public Exercise(string id, string name, string? notes)
-        {
-            _id = id;
-            Name = name;
-            Notes = notes;
-        }
+        
 
     }
 }
