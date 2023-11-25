@@ -43,7 +43,7 @@ const DBAccess = {
                 const _databases = await window.indexedDB.databases();
                 const _databaseNames = _databases.map(_dbase => _dbase.name);
                 if (_databaseNames.indexOf(databaseName) > -1) {
-                    const _dbVersions = (_databases)
+                    const _dbVersions = _databases
                         .filter(dictionary => dictionary.name == databaseName)
                         .map(dictionary => dictionary.version)
                         .sort((a, b) => b - a);
@@ -190,12 +190,54 @@ const DBAccess = {
             }            
         });
 
+    },
+    import: function (databaseName, importData) {
+        return new Promise(async (resolve, reject) => {
+            try {
+                if (typeof importData === 'string') importData = JSON.parse(importData);
+                console.log(`DBAccess.import databaseName: ${databaseName} collectionNames: ${JSON.stringify(Object.keys(importData))}`);
+                Object.keys(importData).forEach(async collectionName => {
+                    // remove existing documents
+                    const documentIds = (await this.find(databaseName, collectionName, {})).map(document => document._id);
+                    await Promise.all(documentIds.map(_id => this.remove(databaseName, collectionName, { _id: _id })));
+                    // insert new documents
+                    await Promise.all(importData[collectionName].map(document => this.insert(databaseName, collectionName, document)));
+                    resolve(true);
+                });
+            } catch (error) {
+                console.error(`DBAccess.import ERROR: ${error.message}`);
+                resolve(false);
+            }
+        })
+    },
+    export: function (databaseName, objectStoreNames){
+        return new Promise(async (resolve, reject) => {
+            try {
+                const today = new Date();
+                const dataSets = await Promise.all(objectStoreNames.map(objectStoreName => this.find(databaseName, objectStoreName, {})));
+                let dump = {};
+                dataSets.forEach((dataSet, index) => {
+                    dump[objectStoreNames[index]] = dataSet;
+                });
+                const stringifiedDataSet = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dump, null, 4));
+                let downloadAnchorNode = document.createElement('a');
+                downloadAnchorNode.style.display = 'none';
+                downloadAnchorNode.setAttribute("href", stringifiedDataSet);
+                downloadAnchorNode.setAttribute("download", `WorkoutTracker_${today.toLocaleDateString('en-US').split("/").join("-")}.json`);
+                document.body.appendChild(downloadAnchorNode);
+                downloadAnchorNode.click();
+                downloadAnchorNode.remove();
+                resolve(true);
+            } catch (error) {
+                console.error(`DBAccess.export ERROR: ${error.message}`);
+                resolve(false);
+            }
+        });
     }
-
 };
 window.DBAccess = DBAccess;
 
-const _queryEvaluator = (searchObject) => {
+const _queryEvaluator = (searchObject) => {    
     let testArray = [];
     const _evaluationForKey = (_key, _searchObject, _parentKeys, _parentObject) => {
         if (!_parentKeys) _parentKeys = [];
