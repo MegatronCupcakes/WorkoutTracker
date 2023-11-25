@@ -1,25 +1,84 @@
 ﻿@using WorkoutTracker.DataAccess;
 @using WorkoutTracker.Models;
 
-<div class="container">
+<div class="container fade-in fade-out">
     <h3>Workout</h3>
-    <p>perform a workout, yo!</p>
 
     <div class="col-12">
-        @if (documents.Count == 0)
+        @if (ActiveProgram == null)
         {
             <div>you don't have any active workouts</div>
         }
         else
         {
-            @foreach (var document in documents)
+            if (CurrentWorkoutActivity != null)
             {
-                <div class="row listing">
-                    <div class="row">
-                        <div class="col-4">@document.Name</div>
+                if(CurrentWorkoutActivity.RoutineStarted)
+                {
+                    <div>"@CurrentWorkoutActivity.ProgramName" > "@CurrentWorkoutActivity.RoutineName" > "Set @CurrentWorkoutActivity.SetSequenceNumber"</div>
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">@CurrentWorkoutActivity.ExerciseName</h5>
+                            <div class="col-12 form-spacer">
+                                <p>@CurrentWorkoutActivity.ExerciseNotes</p>
+                                <p>
+                                    @CurrentWorkoutActivity.ExerciseRepetitions repetitions at @CurrentWorkoutActivity.ExerciseStartingWeight @(CurrentWorkoutActivity.ExerciseWeightUnits == null ? "" : $"({CurrentWorkoutActivity.ExerciseWeightUnits})")
+                                </p>
+                            </div>
+                            <div class="col-12 form-spacer">
+                                <label for="activityNotes" class="form-label">set notes</label>
+                                <textarea class="form-control" id="activityNotes" rows="3" placeholder="@CurrentWorkoutActivity.ActivityNotes" @bind="CurrentWorkoutActivity.ActivityNotes" />
+                            </div>
+                            <div class="row form-spacer">
+                                <div class="col">
+                                    <label for="actualWeight" class="form-label">weight</label>
+                                    <input type="number" class="form-control" id="actualWeight" @bind="CurrentWorkoutActivity.ActualWeight">
+                                </div>
+                                <div class="col">
+                                    <label for="actualRepetitions" class="form-label">repetitions</label>
+                                    <input type="number" class="form-control" id="actualRepetitions" @bind="CurrentWorkoutActivity.ActualRepetitions">
+                                </div>
+                                <div class="col">
+                                    <button class="btn btn-sm btn-outline-success float-end" style="margin-top: 2em;" onclick="@(() => HandleDoneClick(CurrentWorkoutActivity))">done</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </div>
+                }
+                else
+                {
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">up next</h5>
+                            <div class="col-12 form-spacer">
+                                <table class="table table-borderless">
+                                    <thead></thead>
+                                    <tbody>
+                                        <tr>
+                                            <td class="align-middle">@CurrentWorkoutActivity.RoutineName</td>
+                                            <td><div class="btn btn-outline-success float-end" onclick="@(() => HandleStartClick(CurrentWorkoutActivity))">start</div></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                }                
             }
+            else
+            {
+                <div class="col-12">
+                    <table class="table table-borderless">
+                        <thead></thead>
+                        <tbody>
+                            <tr>
+                                <td class="align-middle">@ActiveProgram.Name</td>
+                                <td><div class="btn btn-outline-success" onclick="@(() => HandleStartClick(ActiveProgram))">start</div></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>                
+            }            
         }        
     </div>    
 </div>
@@ -27,7 +86,9 @@
 @code {
     [CascadingParameter]
     public Dictionary<string, IndexedDb> Collections { get; set; }
-    private List<Program> documents = new List<Program>();
+    private WorkoutTracker.Models.Program? ActiveProgram;
+    private WorkoutTracker.Models.Workout? ActiveWorkout { get; set; }
+    private WorkoutTracker.Models.Workout.WorkoutActivity? CurrentWorkoutActivity { get; set; }
 
     protected override void OnAfterRender(bool firstRender)
     {
@@ -37,10 +98,31 @@
         }
     }
 
-    public async void RefreshUi()
+    private async void HandleStartClick(Program program)
     {
-        var query = @"{}";
-        documents = await Collections["programs"].Find<List<Program>>(query);
+        var workout = new WorkoutTracker.Models.Workout(program._id);
+        var workoutId = await workout.Init(Collections);
+        RefreshUi();
+    }
+
+    private async void HandleStartClick(WorkoutTracker.Models.Workout.WorkoutActivity workoutActivity)
+    {
+        var done = await workoutActivity.StartRoutine(Collections);
+        RefreshUi();
+    }
+
+    private async void HandleDoneClick(WorkoutTracker.Models.Workout.WorkoutActivity workoutActivity)
+    {
+        // record results....
+        var done = await workoutActivity.Done(Collections);
+        RefreshUi();
+    }
+
+    public async void RefreshUi()
+    {        
+        ActiveProgram = await Collections["programs"].FindOne<WorkoutTracker.Models.Program>(@"{""active"": true}");
+        if(ActiveProgram != null) ActiveWorkout = await Collections["workouts"].FindOne<WorkoutTracker.Models.Workout>(new { Completed = false, ProgramId = ActiveProgram._id });
+        if (ActiveWorkout != null) CurrentWorkoutActivity = await ActiveWorkout.GetNextWorkoutActivity(Collections);        
         StateHasChanged();
     }
 
