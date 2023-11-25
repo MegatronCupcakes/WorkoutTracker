@@ -1,17 +1,148 @@
 ﻿@using WorkoutTracker.Models;
+@using WorkoutTracker.DataAccess;
 
 <div class="col-12">
-    <label for="nameInput" class="form-label">name</label>
-    <input type="text" class="form-control" id="nameInput" placeholder="@Document?.Name" @bind="ChangeDocument.Name"/>
+    <label for="programNameInput" class="form-label">name</label>
+    <input type="text" class="form-control" id="programNameInput" placeholder="@Document?.Name" @bind="ChangeDocument.Name" />
+</div>
+<div class="col-12" style="margin-top: 1em;">
+    <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" role="switch" id="programActive" checked="@ChangeDocument.Active" oninput="@HandleActiveToggle">
+        <label class="form-check-label" for="programActive">active</label>
+    </div>
 </div>
 <div class="col-12">
-    <label for="routinesInput" class="form-label">routines</label>
-    <input type="text" class="form-control" id="routinesInput" placeholder="" />
+    @if (ShowInclusions)
+    {
+        <div class="row picker fade-in fade-out">
+            <div class="col-12 d-flex justify-content-en">
+                <div class="btn btn-xs btn-outline-primary pickerCardButton" onclick="@(() => HandleShowInclusions())"><i class="bi bi-plus-square"></i></div>
+            </div>
+            <div class="col-12">
+                <label for="exerciseInput" class="form-label">routine sequence</label>
+                @foreach (var routine in IncludedRoutines)
+                {
+                    <div class="row pickerListing">
+                        <div class="card col-12">
+                            <div class="card-body">
+                                <h5 class="card-title">@(IncludedRoutines.IndexOf(routine) + 1)</h5>
+                                <div class="row">
+                                    <div class="col-12">
+                                        <table class="table">
+                                            <caption class="caption-top">@routine.Name</caption>
+                                            <thead>
+                                                <tr>
+                                                    <th scope="col">exercise</th>
+                                                    <th scope="col">starting weight</th>
+                                                    <th scope="col">sets</th>
+                                                    <th scope="col">repetitions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (var routineExercise in routine.RoutineExercises)
+                                                {
+                                                    <tr>
+                                                        <td>@routineExercise.Name</td>
+                                                        <td>@routineExercise.StartingWeight</td>
+                                                        <td>@routineExercise.Sets</td>
+                                                        <td>@routineExercise.Repetitions</td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="col-12 d-flex justify-content-en">
+                                        <div class="btn btn-sm btn-outline-danger pickerCardButton" onclick="@(() => HandleRemoval(routine))"><i class="bi bi-x-square"></i></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="col-12 picker fade-in fade-out">
+            <label for="routineInput" class="form-label">available routines</label>
+            @foreach (var routine in ExcludedRoutines)
+            {
+                <div class="row pickerListing">
+                    <div class="col-10">@routine.Name</div>
+                    <div class="col-2">
+                        <div class="btn btn-sm btn-outline-primary" onclick="@(() => HandleAddition(routine))"><i class="bi bi-plus-square"></i></div>
+                    </div>
+                </div>
+            }
+        </div>        
+    }    
 </div>
 
 @code {
+    [CascadingParameter]
+    public Dictionary<string, IndexedDb> Collections { get; set; }
     [Parameter]
     public Program? Document { get; set; }
     [Parameter]
     public Program ChangeDocument { get; set; }
+    [Parameter]
+    public bool ShowInclusions { get; set; }
+
+    private List<Routine> ExcludedRoutines { get; set; } = new List<Routine>();
+    private List<Routine> IncludedRoutines { get; set; } = new List<Routine>();
+    private async Task<List<Routine>> GetRoutines(string queryOperator)
+    {
+        var inQueryDictionary = new Dictionary<string, Dictionary<string, List<string>>>()
+        {
+            {
+                "_id", new Dictionary<string, List<string>>()
+                {
+                    {
+                        queryOperator, ChangeDocument.RoutineIds
+                    }
+                }
+            }
+        };
+        List<Routine> list = await Collections["routines"].Find<List<Routine>>(inQueryDictionary);
+        return list;
+    }
+    private void HandleActiveToggle()
+    {
+        ChangeDocument.Active = !ChangeDocument.Active;
+    }
+    private void HandleAddition(Routine routine)
+    {        
+        ChangeDocument.RoutineIds.Add(routine._id);
+        HandleShowInclusions();
+    }
+    private void HandleRemoval(Routine routine)
+    {
+        ChangeDocument.RoutineIds.Remove(routine._id);
+        // if we've removed the last RoutineId, toggle ShowInclusion to display the list of available routines.
+        if (ChangeDocument.RoutineIds.Count == 0)
+        {
+            HandleShowInclusions();
+        }
+        else
+        {
+            UpdateUi();
+        }
+    }
+    private void HandleShowInclusions()
+    {
+        ShowInclusions = !ShowInclusions;
+        UpdateUi();
+    }
+
+    private async void UpdateUi()
+    {
+        ExcludedRoutines = await GetRoutines("$nin");
+        IncludedRoutines = await GetRoutines("$in");
+        StateHasChanged();
+    }
+    protected override void OnAfterRender(bool firstRender)
+    {
+        UpdateUi();
+    }
 }

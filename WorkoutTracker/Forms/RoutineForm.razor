@@ -2,13 +2,69 @@
 @using WorkoutTracker.DataAccess;
 
 <div class="col-12">
-    <label for="nameInput" class="form-label">name</label>
-    <input type="text" class="form-control" id="nameInput" placeholder="@Document?.Name" @bind="ChangeDocument.Name" />
+    <label for="routineNameInput" class="form-label">name</label>
+    <input type="text" class="form-control" id="routineNameInput" placeholder="@Document?.Name" @bind="ChangeDocument.Name" />
 </div>
 <div class="col-12">
-    <label for="exerciseInput" class="form-label">exercises</label>
-
+    @if (ShowInclusions)
+    {
+        <div class="row picker fade-in fade-out">
+            <div class="col-12 d-flex justify-content-en">
+                <div class="btn btn-xs btn-outline-primary pickerCardButton" onclick="@(() => HandleShowInclusions())"><i class="bi bi-plus-square"></i></div>
+            </div>
+            <div class="col-12">
+                <label for="exerciseInput" class="form-label">included exercises</label>
+                @foreach (var routineExercise in ChangeDocument.RoutineExercises)
+                {
+                    <div class="row pickerListing">
+                        <div class="card col-12">
+                            <div class="card-body">
+                                <h5 class="card-title">@routineExercise.Name</h5>
+                                <div class="row">
+                                    <div class="col-12">
+                                        <label for="weightRoutineInput" class="form-label">starting weight</label>
+                                        <input type="number" class="form-control" id="weightRoutineInput" placeholder="@routineExercise.StartingWeight" @bind="routineExercise.StartingWeight" />
+                                    </div>
+                                    <div class="col-12">
+                                        <label for="repsRoutineInput" class="form-label">repetitions</label>
+                                        <input type="number" class="form-control" id="repsRoutineInput" placeholder="@routineExercise.Repetitions" @bind="routineExercise.Repetitions" />
+                                    </div>
+                                    <div class="col-12">
+                                        <label for="setsRoutineInput" class="form-label">sets</label>
+                                        <input type="number" class="form-control" id="setsRoutineInput" placeholder="@routineExercise.Sets" @bind="routineExercise.Sets" />
+                                    </div>
+                                    <div class="col-12">
+                                        <label for="minutesRoutineInput" class="form-label">time between sets (minutes)</label>
+                                        <input type="number" class="form-control" id="minutesRoutineInput" placeholder="@routineExercise.MinutesBetweenSets" @bind="routineExercise.MinutesBetweenSets" />
+                                    </div>
+                                    <div class="col-12 d-flex justify-content-en">
+                                        <div class="btn btn-xs btn-outline-danger pickerCardButton" onclick="@(() => HandleRemoval(routineExercise))"><i class="bi bi-x-square"></i></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>            
+        </div>
+    }
+    else
+    {
+        <div class="col-12 picker fade-in fade-out">
+            <label for="exerciseInput" class="form-label">available exercises</label>
+            @foreach (var exercise in ExcludedExercises)
+            {
+                <div class="row pickerListing">
+                    <div class="col-10">@exercise.Name</div>
+                    <div class="col-2">
+                        <div class="btn btn-xs btn-outline-primary" onclick="@(() => HandleAddition(exercise))"><i class="bi bi-plus-square"></i></div>
+                    </div>
+                </div>
+            }
+        </div>        
+    }        
 </div>
+
 
 @code {
     [CascadingParameter]
@@ -17,4 +73,70 @@
     public Routine? Document { get; set; }
     [Parameter]
     public Routine ChangeDocument { get; set; }
+    [Parameter]
+    public bool ShowInclusions { get; set; }
+
+    private List<Exercise> ExcludedExercises { get; set; } = new List<Exercise>();
+    private List<string> GetIncludedIds()
+    {
+        var idList = new List<string>();
+        foreach (var routineExercise in ChangeDocument.RoutineExercises)
+        {
+            idList.Add(routineExercise.ExerciseId);
+        }
+        return idList;
+    }
+    private async Task<List<Exercise>> GetExcludedExercises()
+    {
+        var inQueryDictionary = new Dictionary<string, Dictionary<string, List<string>>>()
+        {
+            {
+                "_id", new Dictionary<string, List<string>>()
+                {
+                    {
+                        "$nin", GetIncludedIds()
+                    }
+                }
+            }
+        };
+        List<Exercise> excludedList = await Collections["exercises"].Find<List<Exercise>>(inQueryDictionary);
+        return excludedList;
+    }
+    private void HandleAddition(Exercise exercise)
+    {
+        var routineExercise = new RoutineExercise();
+        routineExercise.Name = exercise.Name;
+        routineExercise.Notes = exercise.Notes;
+        routineExercise.ExerciseId = exercise._id;
+        ChangeDocument.RoutineExercises.Add(routineExercise);
+        HandleShowInclusions();
+    }
+    private void HandleRemoval(RoutineExercise routineExercise)
+    {
+        ChangeDocument.RoutineExercises.Remove(routineExercise);
+        // if we've removed the last RoutineExercise, toggle ShowInclusion to display the list of available exercises.
+        if(ChangeDocument.RoutineExercises.Count == 0)
+        {
+            HandleShowInclusions();
+        } else
+        {
+            UpdateUi();
+        }        
+    }
+    private void HandleShowInclusions()
+    {
+        ShowInclusions = !ShowInclusions;
+        UpdateUi();
+    }
+
+    private async void UpdateUi()
+    {
+        ExcludedExercises = await GetExcludedExercises();
+        StateHasChanged();
+    }
+    protected override void OnAfterRender(bool firstRender)
+    {
+        UpdateUi();
+    }
+
 }
