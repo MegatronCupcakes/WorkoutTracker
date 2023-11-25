@@ -9,47 +9,56 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">@GetTitle()</h5>
-                <button type="button" class="btn-close" data-bs-toggle="modal" data-bs-target="#@GetModalId()" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-bs-toggle="modal" data-bs-target="#@GetModalId()" aria-label="Close" onclick="@HandleCancel"></button>
             </div>
             <div class="modal-body">                
-                @if(Activity == "delete")
+                @if (ShowConfirmDelete)
                 {
-                    <div class="col-12">
+                    <div class="col-12 fade-in fade-out">
                         are you sure you want to delete "@GetTitle()" permanently?
                     </div>
                 } 
                 else
-                {
+                {                    
                     @if (Type == "Program")
                     {
-                        @(ChangeDocument = Document == null ? new Program() : Document)
-                        <ProgramForm Document="@((Program)Document)" ChangeDocument="@ChangeDocument" />
+                        <span style="display: none;">@(ChangeDocument = Document == null ? new Program() : Document)</span>
+                        <span style="display: none;">@(ShowInclusions = Document != null)</span>
+                        <ProgramForm Document="@((Program)Document)" ChangeDocument="@ChangeDocument" ShowInclusions="@ShowInclusions" />
                     }
                     @if (Type == "Routine")
                     {
-                        @(ChangeDocument = Document == null ? new Routine() : Document)
-                        <RoutineForm Document="@((Routine)Document)" ChangeDocument="@ChangeDocument" />
+                        <span style="display: none;">@(ChangeDocument = Document == null ? new Routine() : Document)</span>
+                        <span style="display: none;">@(ShowInclusions = Document != null)</span>
+                        <RoutineForm Document="@((Routine)Document)" ChangeDocument="@ChangeDocument" ShowInclusions="@ShowInclusions" />
                     }
                     @if (Type == "Exercise")
                     {
-                        @(ChangeDocument = Document == null ? new Exercise() : Document)
+                        <span style="display: none;">@(ChangeDocument = Document == null ? new Exercise() : Document)</span>
+                        <span style="display: none;">@(ShowInclusions = Document != null)</span>
                         <ExerciseForm Document="@((Exercise)Document)" ChangeDocument="@ChangeDocument" />
                     }
                 }
             </div>
             <div class="modal-footer">
-                <button class="btn btn-sm btn-default" data-bs-toggle="modal" data-bs-target="#@GetModalId()">cancel</button>
-                @if(Activity == "delete")
+                @if (Document != null && !ShowConfirmDelete)
                 {
-                    <button class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#@GetModalId()" onclick="@HandleDelete">delete</button>
+                    <button class="btn btn-sm btn-outline-danger position-absolute start-0" style="margin-left: 1em;" onclick="@HandleShowConfirmDelete">
+                        delete
+                    </button>
+                }
+                <button class="btn btn-sm btn-outline-default" data-bs-toggle="modal" data-bs-target="#@GetModalId()" onclick="@HandleCancel">cancel</button>
+                @if (ShowConfirmDelete)
+                {
+                    <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#@GetModalId()" onclick="@HandleDelete">delete</button>
                 } 
                 else if(Activity == "edit")
                 {
-                    <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#@GetModalId()" onclick="@HandleUpdate">save</button>
+                    <button class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#@GetModalId()" onclick="@HandleUpdate">save</button>
                 }
                 else if(Activity == "add")
                 {
-                    <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#@GetModalId()" onclick="@HandleInsert">save</button>
+                    <button class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#@GetModalId()" onclick="@HandleInsert">save</button>
                 }                
             </div>
         </div>
@@ -69,10 +78,12 @@
     public Action? HandleStateChange { get; set; }
 
     public dynamic? ChangeDocument { get; set; }
+    public bool ShowInclusions { get; set; } = false;
+    public bool ShowConfirmDelete { get; set; } = false;
 
     private string GetCollectionName()
     {
-        return $"{(Document == null ? Type.ToLower() : Document.GetType().ToString().Split('.').Last())}s";
+        return $"{(Document == null ? Type.ToLower() : Document.GetType().ToString().Split('.').Last().ToLower())}s";
     }
 
     private string GetModalId()
@@ -91,14 +102,14 @@
 
     private string GetButtonClasses()
     {
-        string buttonClasses = "btn btn-sm btn-default";
+        string buttonClasses = "btn btn-sm btn-outline-default listingButton";
         if (Activity == "add")
         {
-            buttonClasses = "btn btn-sm btn-primary";
+            buttonClasses = "btn btn-sm btn-outline-primary listingButton";
         }
         if (Activity == "delete")
         {
-            buttonClasses = "btn btn-sm btn-danger";
+            buttonClasses = "btn btn-sm btn-outline-danger listingButton";
         }
         return buttonClasses;
     }
@@ -114,7 +125,9 @@
     }
 
     private void RefreshUi()
-    {        
+    {   
+        ShowInclusions = false;
+        ShowConfirmDelete = false;
         HandleStateChange?.Invoke();
     }
 
@@ -134,12 +147,24 @@
         RefreshUi();
         return updated;
     }
-
+    private void HandleShowConfirmDelete()
+    {
+        ShowConfirmDelete = !ShowConfirmDelete;
+    }
     private async Task<bool> HandleDelete()
     {
         var queryDictionary = new Dictionary<string, string>() { { "_id", Document._id } };
         var deleted = await Collections[GetCollectionName()].Remove(queryDictionary);
         RefreshUi();
         return deleted;
+    }
+
+    private void HandleCancel()
+    {
+        if (Type == "Program") ChangeDocument = Document == null ? new Program() : Document;
+        if (Type == "Routine") ChangeDocument = Document == null ? new Routine() : Document;
+        if (Type == "Exercise") ChangeDocument = Document == null ? new Exercise() : Document;
+        ShowInclusions = false;
+        ShowConfirmDelete = false;
     }
 }
