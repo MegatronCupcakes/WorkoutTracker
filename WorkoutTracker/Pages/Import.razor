@@ -48,7 +48,9 @@
     [CascadingParameter]
     public Dictionary<string, IndexedDb> Collections { get; set; }
     [CascadingParameter]
-    public bool ShowSpinner { get; set; } = false;
+    public Action? ToggleSpinner { get; set; }
+
+    private long MaxFileSize = 1024 * 1024 * 50;
     private bool ShowConfirmImport { get; set; } = false;
     private bool ShowCompletionStatus { get; set; } = false;
     private static string CompletionClass = "text-success";
@@ -65,7 +67,7 @@
             {
                 PropertyNameCaseInsensitive = true
             };
-        ImportData = await JsonSerializer.DeserializeAsync<JsonImport>(e.File.OpenReadStream(), options);
+        ImportData = await JsonSerializer.DeserializeAsync<JsonImport>(e.File.OpenReadStream(maxAllowedSize: MaxFileSize), options);
     }
     private void HandleToggleShowConfirm()
     {
@@ -76,7 +78,7 @@
     {
         if (ImportData != null)
         {
-            ShowSpinner = true;
+            if (ToggleSpinner != null) ToggleSpinner();
             RefreshUi();
             try
             {
@@ -91,7 +93,7 @@
             }            
             ShowCompletionStatus = !ShowCompletionStatus;
             ShowConfirmImport = !ShowConfirmImport;
-            ShowSpinner = false;
+            if (ToggleSpinner != null) ToggleSpinner();
             RefreshUi();
             await Task.Delay(3000);                        
             ShowCompletionStatus = !ShowCompletionStatus;
