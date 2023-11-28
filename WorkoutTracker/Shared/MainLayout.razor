@@ -4,14 +4,17 @@
 @using WorkoutTracker.Models;
 @using WorkoutTracker.Pages
 
+@if (ShowSpinner)
+{
+    <Spinner />
+}
 <div class="container-fluid fade-in">    
     @if (DbInitializationComplete)
     {
         <NavMenu DisplayPage="@DisplayPage" HandleUiChange="@HandleUiChange" />
         <div id="contentSpacer" style="height: 5em; width: 100%;"></div>
-        <CascadingValue Value="@ShowSpinner">
-        <CascadingValue Value="@Collections">
-            <Spinner />
+        <CascadingValue Value="@ToggleSpinner">
+        <CascadingValue Value="@Collections">                           
             @switch (DisplayPage["activePage"])
             {
                 case "about":
@@ -38,6 +41,9 @@
                 case "workout":
                     <Workout />
                     break;
+                case "settings":
+                    <Settings />
+                    break;
                 default:
                     <Workout />
                     break;
@@ -52,8 +58,17 @@
     public Dictionary<string, IndexedDb> Collections { get; set; } = new Dictionary<string, IndexedDb>();
     public bool ShowSpinner { get; set; } = false;
     private bool DbInitializationComplete { get; set; } = false;
-    private static List<string> CollectionNames = new List<string>() { "workouts", "programs", "routines", "exercises" };
-    private Queue<string> CollectionInitQueue = new Queue<string>(CollectionNames);
+
+    private static Dictionary<string, List<string>> CollectionSettings = new Dictionary<string, List<string>>()
+    {
+        {"workouts", new List<string>(){ "startedAt", "completedAt" }},
+        {"programs", new List<string>()},
+        {"routines", new List<string>()},
+        {"exercises", new List<string>()},
+        {"settings", new List<string>()}
+    };
+
+    private Queue<string> CollectionInitQueue = new Queue<string>(CollectionSettings.Keys);
     protected override void OnAfterRender(bool firstRender)
     {
         if (firstRender)
@@ -65,7 +80,8 @@
     private void InitializeFromQueue()
     {
         var collectionName = CollectionInitQueue.Dequeue();
-        var indexedDb = new IndexedDb(js, collectionName);
+        var indexedDb = (CollectionSettings[collectionName] != null && CollectionSettings[collectionName].Count > 0) ?
+            new IndexedDb(js, collectionName, CollectionSettings[collectionName]) : new IndexedDb(js, collectionName);
         indexedDb.DbInitialized += indexedDb_DbInitialized;
     }
 
@@ -87,5 +103,11 @@
             DbInitializationComplete = true;
             HandleUiChange();
         }
+    }
+
+    public void ToggleSpinner()
+    {
+        ShowSpinner = !ShowSpinner;
+        StateHasChanged();
     }
 }
