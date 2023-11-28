@@ -1,4 +1,7 @@
 /*
+    because we don't return a cursor, we'll implement query options like Meteor does:
+    https://docs.meteor.com/api/collections#Mongo-Collection-find
+
     Not (yet) Implemented:
         Queries
             Evaluation Query Operators: '$jsonSchema'
@@ -34,6 +37,26 @@ const _createObjectStore = (db, objectStoreName, indexFieldArray) => {
         indexFieldArray.forEach(field => _objectStore.createIndex(field, field, { unique: false }));
     }    
 }
+const _getSortKeyword = (numericValue) => {
+    try {
+        numericValue = Number(numericValue);
+        if (numericValue == 1) return "next";
+        if (numericValue == -1) return "prev";
+        return null;
+    } catch (error) {
+        return null;
+    }
+}
+const _getOptionDetails = (optionsObject) => {
+    const sortIndex = (optionsObject && 'sort' in optionsObject) ? Object.keys(optionsObject.sort)[0] : null;
+    const skip = (optionsObject && 'skip' in optionsObject) ? optionsObject.skip : null;
+    const limit = (optionsObject && 'limit' in optionsObject) ? optionsObject.limit : null;
+    const sortKeyword = sortIndex ? _getSortKeyword(optionsObject.sort[sortIndex]) : null;
+    return [sortIndex, sortKeyword, skip, limit];
+}
+
+
+
 const DBAccess = {
     init: (databaseName, objectStoreName, indexFieldArray) => {
         return new Promise(async (resolve, reject) => {
@@ -132,12 +155,18 @@ const DBAccess = {
             }
         });
     },
-    findOne: (databaseName, objectStoreName, searchObject) => {
+    findOne: (databaseName, objectStoreName, searchObject, optionsObject) => {
         return new Promise(async (resolve, reject) => {
             try {
                 if (typeof searchObject === 'string') searchObject = JSON.parse(searchObject);
+                if (typeof optionsObject === 'string') optionsObject = JSON.parse(optionsObject);
                 const evaluations = _queryEvaluator(searchObject ? searchObject : {});                
-                const _cursorRequest = _db(databaseName, objectStoreName, 'readonly').openCursor();
+                const [sortIndex, sortKeyword, skip, limit] = _getOptionDetails(optionsObject);
+                console.log(`DBAccess.findOne: sortIndex: ${sortIndex} sortKeyword: ${sortKeyword}`);
+                const _cursorRequest = sortIndex ?
+                    _db(databaseName, objectStoreName, 'readonly').index(sortIndex).openCursor(null, sortKeyword)
+                    :
+                    _db(databaseName, objectStoreName, 'readonly').openCursor();
                 _cursorRequest.onsuccess = ({ target }) => {
                     const _cursor = target.result;
                     if (_cursor) {
@@ -155,17 +184,27 @@ const DBAccess = {
             }
         });
     },
-    find: (databaseName, objectStoreName, searchObject) => {
+    find: (databaseName, objectStoreName, searchObject, optionsObject) => {
         return new Promise(async (resolve, reject) => {
             try {                
                 let results = [];
                 if (typeof searchObject === 'string') searchObject = JSON.parse(searchObject);
+                if (typeof optionsObject === 'string') optionsObject = JSON.parse(optionsObject);                
                 const evaluations = _queryEvaluator(searchObject ? searchObject : {});                
-                const _cursorRequest = _db(databaseName, objectStoreName, 'readonly').openCursor();
+                const [sortIndex, sortKeyword, skip, limit] = _getOptionDetails(optionsObject);
+                let _cursorCount = 1;
+                console.log(`DBAccess.find: sortIndex: ${sortIndex} sortKeyword: ${sortKeyword}`);
+                const _cursorRequest = sortIndex ?
+                    _db(databaseName, objectStoreName, 'readonly').index(sortIndex).openCursor(null, sortKeyword)
+                    :
+                    _db(databaseName, objectStoreName, 'readonly').openCursor();
                 _cursorRequest.onsuccess = ({ target }) => {
                     const _cursor = target.result;
-                    if (_cursor) {
-                        if (evaluations.map(test => test(_cursor.value)).every(bool => bool)) results.push(_cursor.value);
+                    if ((_cursor && !limit) || (_cursor && limit && _cursorCount <= limit)) {
+                        if (evaluations.map(test => test(_cursor.value)).every(bool => bool)) {
+                            if (!skip || _cursorCount > skip) results.push(_cursor.value);                            
+                        }
+                        _cursorCount++;
                         _cursor.continue();
                     } else {
                         resolve(results);

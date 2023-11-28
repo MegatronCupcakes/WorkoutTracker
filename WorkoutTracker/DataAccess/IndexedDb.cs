@@ -34,7 +34,7 @@ namespace WorkoutTracker.DataAccess
             Name = name;
             Init();
         }
-        public IndexedDb(IJSRuntime jsruntime, string name, int? version, List<string>? indexedFields)
+        public IndexedDb(IJSRuntime jsruntime, string name, List<string>? indexedFields)
         {
             JsRuntime = jsruntime;
             Name = name;            
@@ -139,6 +139,16 @@ namespace WorkoutTracker.DataAccess
         {
             return await JsRuntime.InvokeAsync<T>("DBAccess.findOne", DatabaseName, Name, JsonSerializer.Serialize(query, serializeOptions));
         }
+        public async Task<T> FindOne<T>(object query, object options)
+        {
+            return await JsRuntime.InvokeAsync<T>(
+                "DBAccess.findOne", 
+                DatabaseName, 
+                Name, 
+                JsonSerializer.Serialize(query, serializeOptions),
+                JsonSerializer.Serialize(options, serializeOptions)
+                );
+        }
 
         /// <summary>
         /// Find all documents matching search criteria.
@@ -153,6 +163,16 @@ namespace WorkoutTracker.DataAccess
         public async Task<T> Find<T>(object query)
         {
             return await JsRuntime.InvokeAsync<T>("DBAccess.find", DatabaseName, Name, JsonSerializer.Serialize(query, serializeOptions));
+        }
+        public async Task<T> Find<T>(object query, object options)
+        {
+            return await JsRuntime.InvokeAsync<T>(
+                "DBAccess.find", 
+                DatabaseName, 
+                Name, 
+                JsonSerializer.Serialize(query, serializeOptions),
+                JsonSerializer.Serialize(options, serializeOptions)
+                );
         }
     }
 }
