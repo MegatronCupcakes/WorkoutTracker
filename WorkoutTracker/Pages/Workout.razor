@@ -1,5 +1,6 @@
 ﻿@using WorkoutTracker.DataAccess;
 @using WorkoutTracker.Models;
+@inject IJSRuntime JsRuntime;
 
 <div class="container fade-in fade-out">
     <h3>Workout</h3>
@@ -15,39 +16,41 @@
             {
                 if(CurrentWorkoutActivity.RoutineStarted)
                 {
-                    <div>"@CurrentWorkoutActivity.ProgramName" > "@CurrentWorkoutActivity.RoutineName" > "Set @CurrentWorkoutActivity.SetSequenceNumber"</div>
-                    <div class="card">
-                        <div class="card-body">
-                            <h5 class="card-title">@CurrentWorkoutActivity.ExerciseName</h5>
-                            <div class="col-12 form-spacer">
-                                <p>@CurrentWorkoutActivity.ExerciseNotes</p>
-                                <p>
-                                    @CurrentWorkoutActivity.ExerciseRepetitions repetitions at @CurrentWorkoutActivity.ExerciseStartingWeight @(CurrentWorkoutActivity.ExerciseWeightUnits == null ? "" : $"({CurrentWorkoutActivity.ExerciseWeightUnits})")
-                                </p>
-                            </div>
-                            <div class="col-12 form-spacer">
-                                <label for="activityNotes" class="form-label">set notes</label>
-                                <textarea class="form-control" id="activityNotes" rows="3" placeholder="@CurrentWorkoutActivity.ActivityNotes" @bind="CurrentWorkoutActivity.ActivityNotes" />
-                            </div>
-                            <div class="row form-spacer">
-                                <div class="col">
-                                    <label for="actualWeight" class="form-label">weight</label>
-                                    <input type="number" class="form-control" id="actualWeight" @bind="CurrentWorkoutActivity.ActualWeight">
+                    <div class="fade-in fade-out">
+                        <div>@CurrentWorkoutActivity.ProgramName > @CurrentWorkoutActivity.RoutineName > @CurrentWorkoutActivity.ExerciseName > Set @CurrentWorkoutActivity.SetSequenceNumber</div>
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">@CurrentWorkoutActivity.ExerciseName</h5>
+                                <div class="col-12 form-spacer">
+                                    <p>@CurrentWorkoutActivity.ExerciseNotes</p>
+                                    <p>
+                                        @CurrentWorkoutActivity.ExerciseRepetitions repetitions at @CurrentWorkoutActivity.ExerciseStartingWeight @(CurrentWorkoutActivity.ExerciseWeightUnits == null ? "" : $"({CurrentWorkoutActivity.ExerciseWeightUnits})"); @CurrentWorkoutActivity.ExerciseMinutesBetweenSets minutes between sets.
+                                    </p>
                                 </div>
-                                <div class="col">
-                                    <label for="actualRepetitions" class="form-label">repetitions</label>
-                                    <input type="number" class="form-control" id="actualRepetitions" @bind="CurrentWorkoutActivity.ActualRepetitions">
+                                <div class="col-12 form-spacer">
+                                    <label for="activityNotes" class="form-label">set notes</label>
+                                    <textarea class="form-control" id="activityNotes" rows="3" placeholder="@CurrentWorkoutActivity.ActivityNotes" @bind="CurrentWorkoutActivity.ActivityNotes" />
                                 </div>
-                                <div class="col">
-                                    <button class="btn btn-sm btn-outline-success float-end" style="margin-top: 2em;" onclick="@(() => HandleDoneClick(CurrentWorkoutActivity))">done</button>
+                                <div class="row form-spacer">
+                                    <div class="col">
+                                        <label for="actualWeight" class="form-label">weight</label>
+                                        <input type="number" class="form-control" id="actualWeight" @bind="CurrentWorkoutActivity.ActualWeight">
+                                    </div>
+                                    <div class="col">
+                                        <label for="actualRepetitions" class="form-label">repetitions</label>
+                                        <input type="number" class="form-control" id="actualRepetitions" @bind="CurrentWorkoutActivity.ActualRepetitions">
+                                    </div>
+                                    <div class="col">
+                                        <button class="btn btn-sm btn-outline-success float-end" style="margin-top: 2em;" onclick="@(() => HandleDoneClick(CurrentWorkoutActivity))">done</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </div>                    
                 }
                 else
                 {
-                    <div class="card">
+                    <div class="card fade-in fade-out">
                         <div class="card-body">
                             <h5 class="card-title">up next</h5>
                             <div class="col-12 form-spacer">
@@ -67,7 +70,7 @@
             }
             else
             {
-                <div class="col-12">
+                <div class="col-12 fade-in fade-out">
                     <table class="table table-borderless">
                         <thead></thead>
                         <tbody>
@@ -86,6 +89,9 @@
 @code {
     [CascadingParameter]
     public Dictionary<string, IndexedDb> Collections { get; set; }
+    [CascadingParameter]
+    public Action? ToggleSpinner { get; set; }
+
     private WorkoutTracker.Models.Program? ActiveProgram;
     private WorkoutTracker.Models.Workout? ActiveWorkout { get; set; }
     private WorkoutTracker.Models.Workout.WorkoutActivity? CurrentWorkoutActivity { get; set; }
@@ -113,15 +119,24 @@
 
     private async void HandleDoneClick(WorkoutTracker.Models.Workout.WorkoutActivity workoutActivity)
     {
-        // record results....
-        var done = await workoutActivity.Done(Collections);
+        // record results....        
+        if (ToggleSpinner != null) ToggleSpinner();        
+        var done = await workoutActivity.Done(Collections, JsRuntime);        
+        if (ToggleSpinner != null)
+        {
+            await Task.Delay(3000);
+            ToggleSpinner();            
+        }
         RefreshUi();
     }
 
     public async void RefreshUi()
     {        
         ActiveProgram = await Collections["programs"].FindOne<WorkoutTracker.Models.Program>(@"{""active"": true}");
-        if(ActiveProgram != null) ActiveWorkout = await Collections["workouts"].FindOne<WorkoutTracker.Models.Workout>(new { Completed = false, ProgramId = ActiveProgram._id });
+        if(ActiveProgram != null) ActiveWorkout = await Collections["workouts"].FindOne<WorkoutTracker.Models.Workout>(
+            new { Completed = false, ProgramId = ActiveProgram._id },
+            new { Sort = new { StartedAt = -1 } }
+        );
         if (ActiveWorkout != null) CurrentWorkoutActivity = await ActiveWorkout.GetNextWorkoutActivity(Collections);        
         StateHasChanged();
     }

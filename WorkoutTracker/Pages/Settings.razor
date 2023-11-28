@@ -1,0 +1,74 @@
+﻿@using WorkoutTracker.DataAccess
+@using WorkoutTracker.Models;
+@inject IJSRuntime JsRuntime;
+
+<div class="container fade-in fade-out">
+    <h3>Settings</h3>
+    <p>settings, yo!</p>
+    @if(AppSettings != null)
+    {
+        <div class="col-12">
+            <div class="input-group">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" role="switch" id="notificationsSwitch" checked="@AppSettings.NotificationsEnabled" oninput="@HandleNotificationsToggle" />
+                    <label class="form-check-label" for="notificationsSwitch">allow notifications</label>
+                </div>
+            </div>
+            <div class="form-text" id="basic-addon4">
+                turning on notifications will cause the page to reload.... don't worry, you didn't break anything
+            </div>            
+        </div>
+    }
+</div>
+
+
+@code {
+    [CascadingParameter]
+    public Dictionary<string, IndexedDb> Collections { get; set; }
+    [CascadingParameter]
+    public Action? ToggleSpinner { get; set; }
+
+    private WorkoutTracker.Models.Settings? AppSettings { get; set; }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            RefreshUi();
+        }
+    }
+    private async void HandleNotificationsToggle()
+    {
+        if(AppSettings != null)
+        {
+            AppSettings.NotificationsEnabled = !AppSettings.NotificationsEnabled;
+            var enabled = await JsRuntime.InvokeAsync<bool>("NotificationsManager.notificationsEnabled");
+            if (AppSettings.NotificationsEnabled && !enabled)
+            {
+                // setting notifications to true but notifications are not enabled; must request permission
+                AppSettings.NotificationsEnabled = await JsRuntime.InvokeAsync<bool>("NotificationsManager.requestPermission");
+            }
+            var queryDictionary = new Dictionary<string, string>() { { "_id", AppSettings._id } };
+            var updateDictionary = new Dictionary<string, object>() { { "$set", AppSettings } };
+            var updated = await Collections["settings"].Update(queryDictionary, updateDictionary);
+            if (AppSettings.NotificationsEnabled && updated)
+            {
+                // reload the page to re-register the service worker now that notifications are enabled
+                if (ToggleSpinner != null) ToggleSpinner();
+                await Task.Delay(3000);
+                await JsRuntime.InvokeVoidAsync("location.reload");
+            }
+            RefreshUi();
+        }        
+    }
+    public async void RefreshUi()
+    {
+        AppSettings = await Collections["settings"].FindOne<WorkoutTracker.Models.Settings>(@"{}");
+        if (AppSettings == null)
+        {
+            AppSettings = new WorkoutTracker.Models.Settings();
+            var inserted = await Collections["settings"].Insert(AppSettings);
+        }
+        StateHasChanged();
+    }
+}

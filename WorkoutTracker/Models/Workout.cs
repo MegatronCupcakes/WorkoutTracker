@@ -1,4 +1,5 @@
-﻿using WorkoutTracker.DataAccess;
+﻿using Microsoft.JSInterop;
+using WorkoutTracker.DataAccess;
 using WorkoutTracker.Pages;
 using static WorkoutTracker.Models.Workout;
 
@@ -8,7 +9,9 @@ namespace WorkoutTracker.Models
     {        
         public string? ProgramId { get; set; }
         public bool Started { get; set; } = false;
+        public DateTime StartedAt { get; set; }
         public bool Completed { get; set; } = false;
+        public DateTime CompletedAt { get; set; }
         public List<WorkoutRoutine> Routines { get; set; } = new List<WorkoutRoutine>();
 
         public Workout() { }
@@ -59,6 +62,7 @@ namespace WorkoutTracker.Models
                 Name = routineExercise.Name;
                 Notes = routineExercise.Notes;
                 Repetitions = routineExercise.Repetitions;
+                MinutesBetweenSets = routineExercise.MinutesBetweenSets;
             }
         }
         public class WorkoutSet
@@ -125,8 +129,12 @@ namespace WorkoutTracker.Models
                 updateDictionary.Add($"{updatePrefix}.startedAt", now);
                 return await collections["workouts"].Update(new { _id = WorkoutId }, new Dictionary<string, object>() { { "$set", updateDictionary } });
             }
-            public async Task<bool> Done(Dictionary<string, IndexedDb> collections)
+            public async Task<bool> Done(Dictionary<string, IndexedDb> collections, IJSRuntime? JsRuntime)
             {
+                var notifyForNext = true;
+                bool notified = false;
+                string notificationMessage = "time for your next activity!";
+                int notificationDelay = 0;
                 var now = new DateTime();
                 var updatePrefix = $"routines.{RoutineSequenceNumber - 1}.routineExercises.{ExerciseSequenceNumber - 1}.sets.{SetSequenceNumber - 1}";
                 dynamic updateObject = new System.Dynamic.ExpandoObject();
@@ -139,8 +147,11 @@ namespace WorkoutTracker.Models
 
                 
                 var _workout = await collections["workouts"].FindOne<Workout>(new { _id = WorkoutId });
-                // check if it's the last set for the exercise
+
+                // check where we are in the workout
                 var isLastSet = _workout.Routines[RoutineSequenceNumber].RoutineExercises[ExerciseSequenceNumber].Sets.Count == SetSequenceNumber;
+                var isLastExercise = _workout.Routines[RoutineSequenceNumber].RoutineExercises.Count == ExerciseSequenceNumber;
+                var isLastRoutine = _workout.Routines.Count == RoutineSequenceNumber;
                 if (isLastSet)
                 {
                     // check if all Sets have the same ActualWeight
@@ -150,22 +161,39 @@ namespace WorkoutTracker.Models
                     // mark set as complete
                     updateDictionary.Add($"routines.{RoutineSequenceNumber - 1}.routineExercises.{ExerciseSequenceNumber - 1}.completed", true);
                     updateDictionary.Add($"routines.{RoutineSequenceNumber - 1}.routineExercises.{ExerciseSequenceNumber - 1}.completedAt", now);
-                }
-                // check if it's the last exercise and set for the routine
-                var isLastExercise = _workout.Routines[RoutineSequenceNumber].RoutineExercises.Count == ExerciseSequenceNumber;
+                }                
                 if (isLastExercise && isLastSet)
                 {
                     // mark routine as complete
                     updateDictionary.Add($"routines.{RoutineSequenceNumber - 1}.completed", true);
                     updateDictionary.Add($"routines.{RoutineSequenceNumber - 1}.completedAt", now);
-                }
-                // check if it's the last routine, exercise, and set for the workout
-                var isLastRoutine = _workout.Routines.Count == RoutineSequenceNumber;
+                    // no need to notify for next workoutActivity; we don't assume the user is starting the next Routine.
+                    notifyForNext = false;
+                }                
                 if (isLastRoutine && isLastExercise && isLastSet)
                 {
                     // mark workout as complete
                     updateDictionary.Add($"routines.{RoutineSequenceNumber - 1}.completed", true);
                     updateDictionary.Add($"routines.{RoutineSequenceNumber - 1}.completedAt", now);
+                    // no need to notify for next workoutActivity
+                    notifyForNext = false;
+                }
+                if(notifyForNext && JsRuntime != null)
+                {
+                    notificationMessage = "time for";
+                    if (isLastSet)
+                    {
+                        // notify for  the first set of the next exercise
+                        notificationMessage = $"{notificationMessage} {_workout.Routines[RoutineSequenceNumber - 1].RoutineExercises[ExerciseSequenceNumber].Name} (Set 1)";
+                        notificationDelay = ExerciseMinutesBetweenSets * 60 * 1000;
+                    }
+                    else
+                    {
+                        // notify for next set of current exercise
+                        notificationMessage = $"{notificationMessage} {_workout.Routines[RoutineSequenceNumber - 1].RoutineExercises[ExerciseSequenceNumber - 1].Name} (Set {ExerciseSequenceNumber + 1})";
+                        notificationDelay = ExerciseMinutesBetweenSets * 60 * 1000;
+                    }
+                    notified = await JsRuntime.InvokeAsync<bool>("NotificationsManager.scheduleNotification", notificationMessage, notificationDelay);
                 }                
                 return await collections["workouts"].Update(new { _id = WorkoutId }, new Dictionary<string, object>() { { "$set", updateDictionary } });
             }
@@ -201,7 +229,6 @@ namespace WorkoutTracker.Models
             }
             return await collections["workouts"].Insert(this);
         }
-        // TODO: implement mongo sort options
         private async Task<Workout>? GetLastWorkout(Dictionary<string, IndexedDb> collections)
         {
             if (ProgramId == null) return null;
@@ -210,7 +237,7 @@ namespace WorkoutTracker.Models
                         new {_id = new Dictionary<string, string>(){ { "$ne", this._id } }},
                         new {programId = this.ProgramId}
                     } } };
-            return await collections["workouts"].FindOne<Workout>(query);
+            return await collections["workouts"].FindOne<Workout>(query, new { Sort = new { StartedAt = -1 } });
         }
         public async Task<WorkoutActivity>? GetNextWorkoutActivity(Dictionary<string, IndexedDb> collections)
         {
