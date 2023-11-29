@@ -49,12 +49,50 @@ const _getSortKeyword = (numericValue) => {
 }
 const _getOptionDetails = (optionsObject) => {
     const sortIndex = (optionsObject && 'sort' in optionsObject) ? Object.keys(optionsObject.sort)[0] : null;
+    const sortKeyword = sortIndex ? _getSortKeyword(optionsObject.sort[sortIndex]) : null;
     const skip = (optionsObject && 'skip' in optionsObject) ? optionsObject.skip : null;
     const limit = (optionsObject && 'limit' in optionsObject) ? optionsObject.limit : null;
-    const sortKeyword = sortIndex ? _getSortKeyword(optionsObject.sort[sortIndex]) : null;
-    return [sortIndex, sortKeyword, skip, limit];
+    const fields = (optionsObject && 'fields' in optionsObject) ? Object.keys(optionsObject.fields) : null;
+    const removeFields = fields ? [] : null;
+    const returnFields = fields ? [] : null;
+    if (fields) {
+        fields.forEach(field => {
+            if (optionsObject.fields[field] == 0) removeFields.push(field);
+            if (optionsObject.fields[field] == 1) returnFields.push(field);
+        });
+    }
+    return [sortIndex, sortKeyword, skip, limit, removeFields, returnFields];
 }
-
+const _applyFieldProjection = (document, removeFields, returnFields) => {
+    return new Promise((resolve, reject) => {
+        try {
+            // ToDo: account for dotnotation.... not sure how to do this yet.     
+            if (!removeFields && !returnFields) resolve(document);
+            let _document = { ...document };
+            let _documentShell = {};            
+            removeFields.forEach(removeField => {
+                if (removeField.includes(".")) {
+                    const removeSubFields = removeField.split(".");
+                    console.log("DBAccess: projection fields: dot notation support not implemented (yet)");
+                } else {
+                    delete _document[removeField];
+                }                
+            });
+            returnFields.forEach(async returnField => {
+                if (returnField.includes(".")) {                                   
+                    const returnSubFields = returnField.split(".");    
+                    console.log("DBAccess: projection fields: dot notation support not implemented (yet)");
+                } else {
+                    _documentShell[returnField] = _document[returnField] ? _document[returnField] : null;
+                }
+                _document = _documentShell;
+            });            
+            resolve(_document);
+        } catch (error) {
+            reject(error);
+        }
+    });    
+}
 
 
 const DBAccess = {
@@ -161,17 +199,16 @@ const DBAccess = {
                 if (typeof searchObject === 'string') searchObject = JSON.parse(searchObject);
                 if (typeof optionsObject === 'string') optionsObject = JSON.parse(optionsObject);
                 const evaluations = _queryEvaluator(searchObject ? searchObject : {});                
-                const [sortIndex, sortKeyword, skip, limit] = _getOptionDetails(optionsObject);
-                console.log(`DBAccess.findOne: sortIndex: ${sortIndex} sortKeyword: ${sortKeyword}`);
+                const [sortIndex, sortKeyword, skip, limit, removeFields, returnFields] = _getOptionDetails(optionsObject);
                 const _cursorRequest = sortIndex ?
                     _db(databaseName, objectStoreName, 'readonly').index(sortIndex).openCursor(null, sortKeyword)
                     :
                     _db(databaseName, objectStoreName, 'readonly').openCursor();
-                _cursorRequest.onsuccess = ({ target }) => {
+                _cursorRequest.onsuccess = async ({ target }) => {
                     const _cursor = target.result;
                     if (_cursor) {
                         if (evaluations.map(test => test(_cursor.value)).every(bool => bool)) {
-                            resolve(_cursor.value);
+                            resolve(await _applyFieldProjection(_cursor.value, removeFields, returnFields));
                         } else {
                             _cursor.continue();
                         }
@@ -191,18 +228,17 @@ const DBAccess = {
                 if (typeof searchObject === 'string') searchObject = JSON.parse(searchObject);
                 if (typeof optionsObject === 'string') optionsObject = JSON.parse(optionsObject);                
                 const evaluations = _queryEvaluator(searchObject ? searchObject : {});                
-                const [sortIndex, sortKeyword, skip, limit] = _getOptionDetails(optionsObject);
+                const [sortIndex, sortKeyword, skip, limit, removeFields, returnFields] = _getOptionDetails(optionsObject);
                 let _cursorCount = 1;
-                console.log(`DBAccess.find: sortIndex: ${sortIndex} sortKeyword: ${sortKeyword}`);
                 const _cursorRequest = sortIndex ?
                     _db(databaseName, objectStoreName, 'readonly').index(sortIndex).openCursor(null, sortKeyword)
                     :
                     _db(databaseName, objectStoreName, 'readonly').openCursor();
-                _cursorRequest.onsuccess = ({ target }) => {
+                _cursorRequest.onsuccess = async ({ target }) => {
                     const _cursor = target.result;
                     if ((_cursor && !limit) || (_cursor && limit && _cursorCount <= limit)) {
                         if (evaluations.map(test => test(_cursor.value)).every(bool => bool)) {
-                            if (!skip || _cursorCount > skip) results.push(_cursor.value);                            
+                            if (!skip || _cursorCount > skip) results.push(await _applyFieldProjection(_cursor.value, removeFields, returnFields));                            
                         }
                         _cursorCount++;
                         _cursor.continue();
