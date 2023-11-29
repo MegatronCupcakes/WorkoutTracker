@@ -7,7 +7,7 @@ WorkoutTracker is a Progressive Web Application (PWA) built with C# (with Blazor
 2. Asynchronicity
 3. Multiple inter-related entitites
 ### Running WorkoutTracker
-just visit [WorkoutTracker on the web](megatroncupcakes.ddns.net).
+just visit [WorkoutTracker on the web](https://megatroncupcakes.ddns.net:9009/).
 
 Or if you'd prefer, you can clone the repo and run it yourself with VisualStudio or VSCode.
 ```
