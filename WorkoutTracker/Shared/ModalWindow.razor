@@ -2,6 +2,8 @@
 @using WorkoutTracker.DataAccess;
 @using WorkoutTracker.Models;
 @using WorkoutTracker.Forms;
+@using System.ComponentModel.DataAnnotations;
+@inject IJSRuntime JsRuntime;
 
 <button class="@GetButtonClasses()" data-bs-toggle="modal" data-bs-target="#@GetModalId()">@Activity</button>
 <div id="@GetModalId()" class="modal modal-lg fade" tabIndex="-1" data-bs-backdrop="static">
@@ -9,7 +11,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">@GetTitle()</h5>
-                <button type="button" class="btn-close" data-bs-toggle="modal" data-bs-target="#@GetModalId()" aria-label="Close" onclick="@HandleCancel"></button>
+                <button type="button" class="btn-close"  data-bs-target="#@GetModalId()" aria-label="Close" onclick="@HandleCancel"></button>
             </div>
             <div class="modal-body">                
                 @if (ShowConfirmDelete)
@@ -24,19 +26,19 @@
                     {
                         <span style="display: none;">@(ChangeDocument = Document == null ? new Program() : Document)</span>
                         <span style="display: none;">@(ShowInclusions = Document != null)</span>
-                        <ProgramForm Document="@((Program)Document)" ChangeDocument="@ChangeDocument" ShowInclusions="@ShowInclusions" />
+                        <ProgramForm Document="@((Program)Document)" ChangeDocument="@ChangeDocument" ShowInclusions="@ShowInclusions" ValidationResults="@ValidationResults" />
                     }
                     @if (Type == "Routine")
                     {
                         <span style="display: none;">@(ChangeDocument = Document == null ? new Routine() : Document)</span>
                         <span style="display: none;">@(ShowInclusions = Document != null)</span>
-                        <RoutineForm Document="@((Routine)Document)" ChangeDocument="@ChangeDocument" ShowInclusions="@ShowInclusions" />
+                        <RoutineForm Document="@((Routine)Document)" ChangeDocument="@ChangeDocument" ShowInclusions="@ShowInclusions" ValidationResults="@ValidationResults" />
                     }
                     @if (Type == "Exercise")
                     {
                         <span style="display: none;">@(ChangeDocument = Document == null ? new Exercise() : Document)</span>
                         <span style="display: none;">@(ShowInclusions = Document != null)</span>
-                        <ExerciseForm Document="@((Exercise)Document)" ChangeDocument="@ChangeDocument" />
+                        <ExerciseForm Document="@((Exercise)Document)" ChangeDocument="@ChangeDocument" ValidationResults="@ValidationResults" />
                     }
                 }
             </div>
@@ -47,18 +49,18 @@
                         delete
                     </button>
                 }
-                <button class="btn btn-sm btn-outline-default" data-bs-toggle="modal" data-bs-target="#@GetModalId()" onclick="@HandleCancel">cancel</button>
+                <button class="btn btn-sm btn-outline-default"  data-bs-target="#@GetModalId()" onclick="@HandleCancel">cancel</button>
                 @if (ShowConfirmDelete)
                 {
-                    <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#@GetModalId()" onclick="@HandleDelete">delete</button>
+                    <button class="btn btn-sm btn-outline-danger"  data-bs-target="#@GetModalId()" onclick="@HandleDelete">delete</button>
                 } 
                 else if(Activity == "edit")
                 {
-                    <button class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#@GetModalId()" onclick="@HandleUpdate">save</button>
+                    <button class="btn btn-sm btn-outline-success"  data-bs-target="#@GetModalId()" onclick="@HandleUpdate">save</button>
                 }
                 else if(Activity == "add")
                 {
-                    <button class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#@GetModalId()" onclick="@HandleInsert">save</button>
+                    <button class="btn btn-sm btn-outline-success"  data-bs-target="#@GetModalId()" onclick="@HandleInsert">save</button>
                 }                
             </div>
         </div>
@@ -80,6 +82,7 @@
     public dynamic? ChangeDocument { get; set; }
     public bool ShowInclusions { get; set; } = false;
     public bool ShowConfirmDelete { get; set; } = false;
+    public List<ValidationResult>? ValidationResults { get; set; }
 
     private string GetCollectionName()
     {
@@ -128,43 +131,78 @@
     {   
         ShowInclusions = false;
         ShowConfirmDelete = false;
+        ValidationResults = null;
         HandleStateChange?.Invoke();
     }
 
-    private async Task<string> HandleInsert()
+    private async void HandleInsert()
     {
-        var documentId = await Collections[GetCollectionName()].Insert(ChangeDocument);
-        RefreshUi();
-        return documentId;
+        if (ChangeDocument != null)
+        {
+            var validation = ChangeDocument.Validate();
+            if (validation.Valid)
+            {
+                var documentId = await Collections[GetCollectionName()].Insert(ChangeDocument);
+                RefreshUi();
+                DismissModal();
+            } else
+            {
+                // do something with validation.Results
+                await JsRuntime.InvokeVoidAsync("console.log", $"validation.Results: {JsonSerializer.Serialize(validation.Results)}");
+                ValidationResults = validation.Results;
+                StateHasChanged();
+            }
+
+        }                
     }
 
-    private async Task<bool> HandleUpdate()
+    private async void HandleUpdate()
     {
-        dynamic updateDictionary;
-        var queryDictionary = new Dictionary<string, string>() { { "_id", Document._id } };
-        updateDictionary = new Dictionary<string, object>() { { "$set", ChangeDocument } };        
-        var updated = await Collections[GetCollectionName()].Update(queryDictionary, updateDictionary);
-        RefreshUi();
-        return updated;
+        if (Document != null && ChangeDocument != null)
+        {
+            var validation = ChangeDocument.Validate();
+            if (validation.Valid)
+            {
+                dynamic updateDictionary;
+                var queryDictionary = new Dictionary<string, string>() { { "_id", Document._id } };
+                updateDictionary = new Dictionary<string, object>() { { "$set", ChangeDocument } };
+                var updated = await Collections[GetCollectionName()].Update(queryDictionary, updateDictionary);
+                RefreshUi();
+                DismissModal();
+            } else
+            {
+                // do something with validation.Results
+                await JsRuntime.InvokeVoidAsync("console.log", $"validation.Results: {JsonSerializer.Serialize(validation.Results)}");
+                ValidationResults = validation.Results;
+            }
+
+        }        
     }
     private void HandleShowConfirmDelete()
     {
         ShowConfirmDelete = !ShowConfirmDelete;
     }
-    private async Task<bool> HandleDelete()
+    private async void HandleDelete()
     {
         var queryDictionary = new Dictionary<string, string>() { { "_id", Document._id } };
         var deleted = await Collections[GetCollectionName()].Remove(queryDictionary);
         RefreshUi();
-        return deleted;
+        DismissModal();
     }
 
     private void HandleCancel()
     {
+        DismissModal();
         if (Type == "Program") ChangeDocument = Document == null ? new Program() : Document;
         if (Type == "Routine") ChangeDocument = Document == null ? new Routine() : Document;
         if (Type == "Exercise") ChangeDocument = Document == null ? new Exercise() : Document;
         ShowInclusions = false;
         ShowConfirmDelete = false;
+        ValidationResults = null;
+    }
+
+    private async void DismissModal()
+    {
+        var dismissed = await JsRuntime.InvokeAsync<bool>("ModalTools.closeModal", GetModalId());
     }
 }

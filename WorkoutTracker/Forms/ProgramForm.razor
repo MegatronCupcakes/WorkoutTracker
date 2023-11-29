@@ -1,13 +1,15 @@
 ﻿@using WorkoutTracker.Models;
 @using WorkoutTracker.DataAccess;
+@using System.ComponentModel.DataAnnotations;
 
 <div class="col-12">
     <label for="programNameInput" class="form-label">name</label>
-    <input type="text" class="form-control" id="programNameInput" placeholder="@Document?.Name" @bind="ChangeDocument.Name" />
+    <input type="text" class="form-control @(ValidationTools.ShowValidation("Name", ValidationResults))" id="programNameInput" placeholder="@Document?.Name" @bind="ChangeDocument.Name" />
+    <div class="invalid-feedback">please provide a valid name</div>
 </div>
 <div class="col-12" style="margin-top: 1em;">
     <div class="form-check form-switch">
-        <input class="form-check-input" type="checkbox" role="switch" id="programActive" checked="@ChangeDocument.Active" oninput="@HandleActiveToggle">
+        <input class="form-check-input @(ValidationTools.ShowValidation("Active", ValidationResults))" type="checkbox" role="switch" id="programActive" checked="@ChangeDocument.Active" oninput="@HandleActiveToggle">
         <label class="form-check-label" for="programActive">active</label>
     </div>
 </div>
@@ -88,6 +90,8 @@
     public Program ChangeDocument { get; set; }
     [Parameter]
     public bool ShowInclusions { get; set; }
+    [Parameter]
+    public List<ValidationResult>? ValidationResults { get; set; }
 
     private List<Routine> ExcludedRoutines { get; set; } = new List<Routine>();
     private List<Routine> IncludedRoutines { get; set; } = new List<Routine>();

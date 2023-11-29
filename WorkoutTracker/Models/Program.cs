@@ -1,4 +1,5 @@
-﻿using WorkoutTracker.DataAccess;
+﻿using System.ComponentModel.DataAnnotations;
+using WorkoutTracker.DataAccess;
 
 namespace WorkoutTracker.Models
 {
@@ -11,7 +12,9 @@ namespace WorkoutTracker.Models
     /// </summary>
     public class Program : ActivityBase
     {
-        public bool Active { get; set; } = false;                   
+        [Required]
+        public bool Active { get; set; } = false;
+        [Required]
         public List<string> RoutineIds { get; set; } = new List<string>();
         public Program() { }
         public async void ToggleActive(IndexedDb programCollection)

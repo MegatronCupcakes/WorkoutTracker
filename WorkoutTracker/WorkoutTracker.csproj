@@ -21,4 +21,8 @@
     <Folder Include="wwwroot\css\bootstrap\" />
   </ItemGroup>
 
+  <ItemGroup>
+	  <Folder Include="wwwroot\scripts\" />
+  </ItemGroup>
+
 </Project>

@@ -1,9 +1,11 @@
 ﻿@using WorkoutTracker.Models;
 @using WorkoutTracker.DataAccess;
+@using System.ComponentModel.DataAnnotations;
 
 <div class="col-12">
     <label for="routineNameInput" class="form-label">name</label>
-    <input type="text" class="form-control" id="routineNameInput" placeholder="@Document?.Name" @bind="ChangeDocument.Name" />
+    <input type="text" class="form-control @(ValidationTools.ShowValidation("Name", ValidationResults))" id="routineNameInput" placeholder="@Document?.Name" @bind="ChangeDocument.Name" />
+    <div class="invalid-feedback">please provide a valid name</div>
 </div>
 <div class="col-12">
     @if (ShowInclusions)
@@ -23,19 +25,19 @@
                                 <div class="row">
                                     <div class="col-12">
                                         <label for="weightRoutineInput" class="form-label">starting weight</label>
-                                        <input type="number" class="form-control" id="weightRoutineInput" placeholder="@routineExercise.StartingWeight" @bind="routineExercise.StartingWeight" />
+                                        <input type="number" class="form-control @(ValidationTools.ShowValidation("StartingWeight", ValidationResults))" id="weightRoutineInput" placeholder="@routineExercise.StartingWeight" @bind="routineExercise.StartingWeight" />
                                     </div>
                                     <div class="col-12">
                                         <label for="repsRoutineInput" class="form-label">repetitions</label>
-                                        <input type="number" class="form-control" id="repsRoutineInput" placeholder="@routineExercise.Repetitions" @bind="routineExercise.Repetitions" />
+                                        <input type="number" class="form-control @(ValidationTools.ShowValidation("Repetitions", ValidationResults))" id="repsRoutineInput" placeholder="@routineExercise.Repetitions" @bind="routineExercise.Repetitions" />
                                     </div>
                                     <div class="col-12">
                                         <label for="setsRoutineInput" class="form-label">sets</label>
-                                        <input type="number" class="form-control" id="setsRoutineInput" placeholder="@routineExercise.Sets" @bind="routineExercise.Sets" />
+                                        <input type="number" class="form-control @(ValidationTools.ShowValidation("Sets", ValidationResults))" id="setsRoutineInput" placeholder="@routineExercise.Sets" @bind="routineExercise.Sets" />
                                     </div>
                                     <div class="col-12">
                                         <label for="minutesRoutineInput" class="form-label">time between sets (minutes)</label>
-                                        <input type="number" class="form-control" id="minutesRoutineInput" placeholder="@routineExercise.MinutesBetweenSets" @bind="routineExercise.MinutesBetweenSets" />
+                                        <input type="number" class="form-control @(ValidationTools.ShowValidation("MinutesBetweenSets", ValidationResults))" id="minutesRoutineInput" placeholder="@routineExercise.MinutesBetweenSets" @bind="routineExercise.MinutesBetweenSets" />
                                     </div>
                                     <div class="col-12 d-flex justify-content-en">
                                         <div class="btn btn-xs btn-outline-danger pickerCardButton" onclick="@(() => HandleRemoval(routineExercise))"><i class="bi bi-x-square"></i></div>
@@ -75,6 +77,8 @@
     public Routine ChangeDocument { get; set; }
     [Parameter]
     public bool ShowInclusions { get; set; }
+    [Parameter]
+    public List<ValidationResult>? ValidationResults { get; set; }
 
     private List<Exercise> ExcludedExercises { get; set; } = new List<Exercise>();
     private List<string> GetIncludedIds()

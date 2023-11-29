@@ -1,42 +1,35 @@
-﻿@using pax.BlazorChartJs
+﻿@using WorkoutTracker.DataAccess
+@using pax.BlazorChartJs
+
 <div class="container fade-in fade-out">
     <h3>Track Workouts</h3>
-    <div class="btn-group">
-        <button type="button" class="btn btn-primary" @onclick="Randomize">Randomize</button>
-    </div>
-    <div class="w-75 h-50">
-        <ChartComponent @ref="chartComponent"
-                        ChartJsConfig="chartJsConfig"
-                        OnEventTriggered="ChartEventTriggered">
-        </ChartComponent>
-    </div>
+    <div class="col-12">
+        <div class="w-75 h-50">
+            <ChartComponent @ref="chartComponent"
+                            ChartJsConfig="chartJsConfig"
+                            OnEventTriggered="ChartEventTriggered">
+            </ChartComponent>
+        </div>
+    </div>    
 </div>
 
 
 @code {
+    [CascadingParameter]
+    public Dictionary<string, IndexedDb> Collections { get; set; }
+    [CascadingParameter]
+    public Action? ToggleSpinner { get; set; }
+
     ChartJsConfig chartJsConfig = null!;
     ChartComponent? chartComponent;
     private bool chartReady;
 
-    protected override void OnInitialized()
+    protected override void OnAfterRender(bool firstRender)
     {
-        chartJsConfig = new ChartJsConfig()
-            {
-                Type = ChartType.bar,
-                Data = new ChartJsData()
-                {
-                    Labels = new List<string>() { "Jan", "Feb", "Mar" },
-                    Datasets = new List<ChartJsDataset>()
-                {
-                    new BarDataset()
-                    {
-                        Label = "Dataset 1",
-                        Data = new List<object>() { 1, 2, 3 }
-                    }
-                }
-                }
-            };
-        base.OnInitialized();
+        if (firstRender)
+        {
+            RefreshUi();
+        }
     }
 
     private void ChartEventTriggered(ChartJsEvent chartJsEvent)
@@ -47,28 +40,30 @@
         }
     }
 
-    private void Randomize()
+    private async void RefreshUi()
     {
-        if (!chartReady)
-        {
-            return;
-        }
+        var workouts = await Collections["workouts"].Find<List<WorkoutTracker.Models.Workout>>(
+            new { Completed = true },
+            new { Sort = new { StartedAt = 1 }, Fields = new {Routines = 1 } }
+        );
+        var exercises = workouts.Select(workout => workout.Routines.Select(routine => routine.RoutineExercises));
+        
 
-        Random random = new();
-        Dictionary<ChartJsDataset, SetDataObject> chartData = new();
-
-        foreach (var dataset in chartJsConfig.Data.Datasets)
-        {
-            if (dataset is BarDataset barDataset)
+        chartJsConfig = new ChartJsConfig()
             {
-                List<object> newData = new();
-                foreach (var data in barDataset.Data)
+                Type = ChartType.line,
+                Data = new ChartJsData()
                 {
-                    newData.Add(random.Next(1, 10));
+                    Labels = new List<string>() { "Jan", "Feb", "Mar" },
+                    Datasets = new List<ChartJsDataset>()
+                {
+                    new LineDataset()
+                    {
+                        Label = "Dataset 1",
+                        Data = new List<object>() { 1, 2, 3 }
+                    }
                 }
-                chartData[dataset] = new(newData);
-            }
-        }
-        chartJsConfig.SetData(chartData);
+                }
+            };
     }
 }

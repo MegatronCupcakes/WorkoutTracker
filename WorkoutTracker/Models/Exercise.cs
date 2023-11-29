@@ -1,4 +1,6 @@
-﻿namespace WorkoutTracker.Models
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace WorkoutTracker.Models
 {
     /// <summary>
     /// 
@@ -10,6 +12,7 @@
     public class Exercise : ActivityBase
     {
         public string? Notes {  get; set; }
+        [Required]
         public string WeightUnits { get; set; } = "none";
         public Exercise() { }
         

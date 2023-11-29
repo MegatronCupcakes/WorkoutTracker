@@ -1,4 +1,6 @@
-﻿namespace WorkoutTracker.Models
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace WorkoutTracker.Models
 {
     /// <summary>
     /// 
@@ -9,6 +11,7 @@
     /// </summary>
     public class Routine : ActivityBase
     {
+        [Required]
         public List<RoutineExercise> RoutineExercises { get; set; } = new List<RoutineExercise>();
         public Routine() { }
     }

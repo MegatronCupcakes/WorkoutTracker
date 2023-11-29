@@ -1,4 +1,5 @@
 ﻿using Microsoft.JSInterop;
+using System.ComponentModel.DataAnnotations;
 using WorkoutTracker.DataAccess;
 using WorkoutTracker.Pages;
 using static WorkoutTracker.Models.Workout;
@@ -6,7 +7,8 @@ using static WorkoutTracker.Models.Workout;
 namespace WorkoutTracker.Models
 {
     public class Workout : ActivityBase
-    {        
+    {
+        [Required]
         public string? ProgramId { get; set; }
         public bool Started { get; set; } = false;
         public DateTime StartedAt { get; set; }
@@ -21,6 +23,7 @@ namespace WorkoutTracker.Models
         }
         public class WorkoutRoutine : Routine
         {
+            [Required]
             public string? RoutineId { get; set; }
             public int SequenceNumber { get; set; }
             public bool Started { get; set; } = false;
@@ -41,7 +44,9 @@ namespace WorkoutTracker.Models
         }
         public class WorkoutExercise: RoutineExercise
         {
+            [Required]
             public string? RoutineExerciseId { get; set; }
+            [Required]
             public int SequenceNumber { get; set; }
             public bool Started { get; set; } = false;
             public DateTime StartedAt { get; set; }
@@ -67,6 +72,7 @@ namespace WorkoutTracker.Models
         }
         public class WorkoutSet
         {
+            [Required]
             public int SequenceNumber { get; set; }
             public bool Started { get; set; } = false;
             public DateTime? StartedAt { get; set; }
@@ -83,9 +89,12 @@ namespace WorkoutTracker.Models
         }
         public class WorkoutActivity
         {
+            [Required]
             public string WorkoutId { get; set; }
             public string? PreviousWorkoutId { get; set; }
+            [Required]
             public string ProgramName {  get; set; }
+            [Required]
             public string RoutineName { get; set; }
             public bool RoutineStarted { get; set; }
             public string ExerciseName { get; set; }
@@ -97,8 +106,11 @@ namespace WorkoutTracker.Models
             public int ActualWeight {  get; set; }
             public string ExerciseWeightUnits { get; set; }
             public int ExerciseMinutesBetweenSets { get; set; }
+            [Required]
             public int RoutineSequenceNumber { get; set; }
+            [Required]
             public int ExerciseSequenceNumber { get; set; }
+            [Required]
             public int SetSequenceNumber { get; set; }
             public WorkoutActivity(Workout? previousWorkout, Workout currentWorkout, WorkoutRoutine currentRoutine, WorkoutExercise currentExercise, WorkoutSet currentSet)
             {
