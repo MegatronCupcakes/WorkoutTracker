@@ -181,6 +181,20 @@ window.DBAccess = {
             }
         });
     },
+    count: (databaseName, objectStoreName) => {
+        return new Promise((resolve, reject) => {
+            try {
+                const _countRequest = _db(databaseName, objectStoreName, 'readonly').count();
+                _countRequest.onerror = error => reject(error);                
+                _countRequest.onsuccess = () => {
+                    console.log(`DBAccess.count: databaseName: ${databaseName} objectStoreName: ${objectStoreName} count: ${_countRequest.result}`);
+                    resolve(_countRequest.result);
+                }                
+            } catch (error) {
+                reject(error);
+            }
+        });
+    },
     remove: (databaseName, objectStoreName, searchObject) => {
         // currently restricted to remove single record by _id only.
         return new Promise((resolve, reject) => {

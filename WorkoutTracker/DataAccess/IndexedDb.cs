@@ -63,6 +63,10 @@ namespace WorkoutTracker.DataAccess
             return await JsRuntime.InvokeAsync<bool>("DBAccess.import", CollectionDefinitions.DatabaseName, JsonSerializer.Serialize(dataImport, serializeOptions));
         }
 
+        public async Task<int> Count()
+        {
+            return await JsRuntime.InvokeAsync<int>("DBAccess.count", DatabaseName, Name);
+        }
         // Implement Mongo-like methods....
 
         /// <summary>
