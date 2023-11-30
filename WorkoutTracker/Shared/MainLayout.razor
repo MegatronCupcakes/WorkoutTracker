@@ -11,43 +11,49 @@
 <div class="container-fluid fade-in">    
     @if (DbInitializationComplete)
     {
-        <NavMenu DisplayPage="@DisplayPage" HandleUiChange="@HandleUiChange" />
+        <NavMenu ShowWizard="@ShowWizard" DisplayPage="@DisplayPage" HandleUiChange="@HandleUiChange" />
         <div id="contentSpacer" style="height: 5em; width: 100%;"></div>
         <CascadingValue Value="@ToggleSpinner">
-        <CascadingValue Value="@Collections">                           
-            @switch (DisplayPage["activePage"])
-            {
-                case "about":
-                    <About />
-                    break;
-                case "exercises":
-                    <Exercises />
-                    break;
-                case "export":
-                    <Export />
-                    break;
-                case "import":
-                    <Import />
-                    break;
-                case "metrics":
-                    <Metrics />
-                    break;
-                case "programs":
-                    <Programs />
-                    break;
-                case "routines":
-                    <Routines />
-                    break;
-                case "workout":
-                    <Workout />
-                    break;
-                case "settings":
-                    <Settings />
-                    break;
-                default:
-                    <Workout />
-                    break;
-            }
+        <CascadingValue Value="@Collections">
+                @if (ShowWizard)
+                {
+                    <Wizard SettingsId="@SettingsId" HandleUiChange="@HandleUiChange" />
+                } else
+                {
+                    @switch (DisplayPage["activePage"])
+                    {
+                        case "about":
+                            <About />
+                            break;
+                        case "exercises":
+                            <Exercises />
+                            break;
+                        case "export":
+                            <Export />
+                            break;
+                        case "import":
+                            <Import />
+                            break;
+                        case "metrics":
+                            <Metrics />
+                            break;
+                        case "programs":
+                            <Programs />
+                            break;
+                        case "routines":
+                            <Routines />
+                            break;
+                        case "workout":
+                            <Workout />
+                            break;
+                        case "settings":
+                            <Settings />
+                            break;
+                        default:
+                            <Workout />
+                            break;
+                    }
+                }                
         </CascadingValue>
         </CascadingValue>
     }
@@ -57,9 +63,14 @@
     public Dictionary<string, string> DisplayPage { get; set; } = new Dictionary<string, string>() { { "activePage", "workout" } };
     public Dictionary<string, IndexedDb> Collections { get; set; } = new Dictionary<string, IndexedDb>();
     public bool ShowSpinner { get; set; } = false;
-    private bool DbInitializationComplete { get; set; } = false;
+    public bool ShowWizard { get; set; } = false;
+    public string? SettingsId { get; set; }
 
+    private bool DbInitializationComplete { get; set; } = false;
     private Queue<string> CollectionInitQueue = new Queue<string>(CollectionDefinitions.Definitions.Keys);
+
+
+
     protected override void OnAfterRender(bool firstRender)
     {
         if (firstRender)
@@ -92,6 +103,9 @@
         else
         {
             DbInitializationComplete = true;
+            var appSettings = await WorkoutTracker.Models.Settings.GetSettings(Collections);
+            SettingsId = appSettings._id;
+            ShowWizard = appSettings.WizardEnabled;
             HandleUiChange();
         }
     }

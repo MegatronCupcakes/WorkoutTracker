@@ -1,0 +1,71 @@
+﻿@using WorkoutTracker.DataAccess;
+@using WorkoutTracker.Models;
+@inject IJSRuntime JsRuntime;
+@inject HttpClient Http
+
+<div class="container fade-in fade-out">
+    <div class="row">
+        <div class="col-12">
+            <h3>hi there!</h3>
+            <p>It looks like this is your first time here.  Let's go over a few details before getting started.</p>
+            <p>
+                First, let's talk about data.  You'll create the following:
+                <ul>
+                    <li>Exercise - a thing you do to get fit!  Specifically, a weightlifting activity, e.g. "curls" or "bench press."</li>
+                    <li>Routine - a collection of Exercises performed together along with some specifics for performing those exercises such as "starting weight" and "repetitions." Examples: "Thursday Routine" or "The One That Hurts"</li>
+                    <li>Program - a sequence of Routines that defines a workout strategy.  Maybe you have a "Lazy Winter" workout and a more strenuous "Beach Body" program you start after the holidays....</li>
+                </ul>
+            </p>
+            <p>
+                One you have an Exercise, a Routine, and a Program, you're ready to start working out and tracking your progress!  Don't worry, your data is safe and secure because it never leaves the app.  Everything lives right here and is never uploaded to a server of any kind.  And you can easily export it as json if/when you want!  It's entirely yours and yours alone.
+            </p>
+            <p>
+                Don't feel like doing data entry?  Just want to see how WorkoutTracker works?  No problem.... you can click below to set up some sample data.  If you later decide you would like to setup things yourself, we've got you covered.  Just go to the Settings menu and turn the Wizard on and we'll run through this process again.
+            </p>
+        </div>
+        <div class="col-12" style="display: inline-block; margin-top: 3em;">
+            <div class="btn btn-outline-primary float-start" onclick="@HandleSeedClick">Set things up for me</div>
+            <div class="btn btn-outline-primary float-end" onclick="@HandleSelfClick">I'll do things myself</div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [CascadingParameter]
+    public Dictionary<string, IndexedDb> Collections { get; set; }
+    [CascadingParameter]
+    public Action? ToggleSpinner { get; set; }
+    [Parameter]
+    public string? SettingsId { get; set; }
+    [Parameter]
+    public Action? HandleUiChange { get; set; }
+
+    private async void HandleSeedClick()
+    {
+        if (ToggleSpinner != null) ToggleSpinner();
+        var importData = await Http.GetFromJsonAsync<JsonImport>("Seeds/seeds.json");
+        if (importData != null) await IndexedDb.Import(importData, JsRuntime);        
+        DismissWizard();
+    }
+    private async void HandleSelfClick()
+    {
+        if (ToggleSpinner != null) ToggleSpinner();
+        DismissWizard();
+    }
+    private async void DismissWizard()
+    {
+        if (SettingsId != null)
+        {            
+            var update = new Dictionary<string, object>()
+            {
+                {
+                    "$set", new {WizardEnabled = false}
+                }
+            };
+            var updated = await Collections["settings"].Update(new { _id = SettingsId }, update);
+            // display the spinner long enough so the user knows something happened
+            await Task.Delay(1000);
+            await JsRuntime.InvokeVoidAsync("location.reload");
+        }
+    }
+}

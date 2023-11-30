@@ -17,6 +17,17 @@
                 turning on notifications will cause the page to reload.... don't worry, you didn't break anything
             </div>            
         </div>
+        <div class="col-12">
+            <div class="input-group">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" role="switch" id="wizardSwitch" checked="@AppSettings.WizardEnabled" oninput="@HandleWizardToggle" />
+                    <label class="form-check-label" for="wizardSwitch">enable wizard</label>
+                </div>
+            </div>
+            <div class="form-text" id="basic-addon4">
+                enabling the wizard will cause the page to reload immediately and you'll run through the wizard again.  Your current data will ONLY be deleted if you choose the wizard's "Set things up for me" option.
+            </div>
+        </div>
     }
 </div>
 
@@ -54,20 +65,28 @@
             {
                 // reload the page to re-register the service worker now that notifications are enabled
                 if (ToggleSpinner != null) ToggleSpinner();
-                await Task.Delay(3000);
+                await Task.Delay(1000);
                 await JsRuntime.InvokeVoidAsync("location.reload");
             }
             RefreshUi();
         }        
     }
+    private async void HandleWizardToggle()
+    {
+        var update = new Dictionary<string, object>()
+            {
+                {
+                    "$set", new {WizardEnabled = true}
+                }
+            };
+        var updated = await Collections["settings"].Update(new { _id = AppSettings._id }, update);
+        // display the spinner long enough so the user knows something happened
+        await Task.Delay(1000);
+        await JsRuntime.InvokeVoidAsync("location.reload");
+    }
     public async void RefreshUi()
     {
-        AppSettings = await Collections["settings"].FindOne<WorkoutTracker.Models.Settings>(@"{}");
-        if (AppSettings == null)
-        {
-            AppSettings = new WorkoutTracker.Models.Settings();
-            var inserted = await Collections["settings"].Insert(AppSettings);
-        }
+        AppSettings = await WorkoutTracker.Models.Settings.GetSettings(Collections);
         StateHasChanged();
     }
 }
