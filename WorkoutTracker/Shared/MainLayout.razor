@@ -59,16 +59,7 @@
     public bool ShowSpinner { get; set; } = false;
     private bool DbInitializationComplete { get; set; } = false;
 
-    private static Dictionary<string, List<string>> CollectionSettings = new Dictionary<string, List<string>>()
-    {
-        {"workouts", new List<string>(){ "startedAt", "completedAt" }},
-        {"programs", new List<string>()},
-        {"routines", new List<string>()},
-        {"exercises", new List<string>()},
-        {"settings", new List<string>()}
-    };
-
-    private Queue<string> CollectionInitQueue = new Queue<string>(CollectionSettings.Keys);
+    private Queue<string> CollectionInitQueue = new Queue<string>(CollectionDefinitions.Definitions.Keys);
     protected override void OnAfterRender(bool firstRender)
     {
         if (firstRender)
@@ -80,8 +71,8 @@
     private void InitializeFromQueue()
     {
         var collectionName = CollectionInitQueue.Dequeue();
-        var indexedDb = (CollectionSettings[collectionName] != null && CollectionSettings[collectionName].Count > 0) ?
-            new IndexedDb(js, collectionName, CollectionSettings[collectionName]) : new IndexedDb(js, collectionName);
+        var indexedDb = (CollectionDefinitions.Definitions[collectionName] != null && CollectionDefinitions.Definitions[collectionName].Count > 0) ?
+            new IndexedDb(js, collectionName, CollectionDefinitions.Definitions[collectionName]) : new IndexedDb(js, collectionName);
         indexedDb.DbInitialized += indexedDb_DbInitialized;
     }
 
