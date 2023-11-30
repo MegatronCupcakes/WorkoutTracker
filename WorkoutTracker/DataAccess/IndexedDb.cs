@@ -22,9 +22,7 @@ namespace WorkoutTracker.DataAccess
             DbInitialized?.Invoke(this, IsInitialized);
         }
         
-
-        // Ideally DatabaseName is defined in configuration
-        private string DatabaseName = "WorkoutTracker";
+        private string DatabaseName = CollectionDefinitions.DatabaseName;
         public string Name { get; set; }
         
         public List<string>? IndexedFields { get; set; }
@@ -171,6 +169,16 @@ namespace WorkoutTracker.DataAccess
                 DatabaseName, 
                 Name, 
                 JsonSerializer.Serialize(query, serializeOptions),
+                JsonSerializer.Serialize(options, serializeOptions)
+                );
+        }
+        public async Task<T> Find<T>(string query, object options)
+        {
+            return await JsRuntime.InvokeAsync<T>(
+                "DBAccess.find",
+                DatabaseName,
+                Name,
+                query,
                 JsonSerializer.Serialize(options, serializeOptions)
                 );
         }
