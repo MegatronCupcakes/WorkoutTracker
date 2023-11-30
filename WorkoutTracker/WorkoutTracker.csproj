@@ -17,9 +17,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="wwwroot\Seeds\" />
     <Folder Include="wwwroot\css\bootstrap\" />
   </ItemGroup>
-
   <ItemGroup>
 	  <Folder Include="wwwroot\scripts\" />
   </ItemGroup>
