@@ -6,8 +6,11 @@ WorkoutTracker is a Progressive Web Application (PWA) built with C# (with Blazor
 1. Generic Class for IndexedDb integration; stores and retrieves data for multiple Types
 2. Asynchronicity
 3. Multiple inter-related entitites
+
+
 ### Running WorkoutTracker
 just visit [WorkoutTracker on the web](https://megatroncupcakes.ddns.net:9009/), there's no need to clone, download, or configure anything!
+
 
 #### (Optionally) Installing the PWA on mobile or desktop is simple:
 
@@ -25,20 +28,27 @@ just visit [WorkoutTracker on the web](https://megatroncupcakes.ddns.net:9009/),
   <img src="WorkoutTracker/wwwroot/screenshots/5.png" height="200" style="display: inline-block; float: right; margin-left: 25px;">
 </p>
 
+##### firefox mobile
+Firefox for iOS does not support installing PWA's.  Firefox for Android reportedly supports installing PWA's but has not been tested with WorkoutTracker.
+
 ##### chrome desktop
 <p><img src="WorkoutTracker/wwwroot/screenshots/6-Desktop.png" height="200"></p>
 
+##### edge desktop
+<p><img src="WorkoutTracker/wwwroot/screenshots/7-Desktop.png" height="200"></p>
+
+##### firefox desktop
+mozilla removed PWA (or more accurately SSB - Single Site Browser) support from Firefox
 
 
-
-
-
-
+#### Running from source:
 Or if you'd prefer, you can clone the repo and run it yourself with VisualStudio or VSCode.
 ```
 git clone https://github.com/MegatronCupcakes/WorkoutTracker.git
 ```
 
+
+#### Run with Docker:
 OR if your're feeling adventurous and want to host your own instance, you can build your own Docker image:
 ```
 git clone https://github.com/MegatronCupcakes/WorkoutTracker.git
