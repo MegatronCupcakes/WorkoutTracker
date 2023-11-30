@@ -1,18 +1,32 @@
-﻿@using WorkoutTracker.DataAccess
-@using pax.BlazorChartJs
+﻿@using System.Text.Json
+@using WorkoutTracker.DataAccess
+@inject IJSRuntime JsRuntime;
 
 <div class="container fade-in fade-out">
-    <h3>Track Workouts</h3>
+    <div class="col-12 mb-3">
+        <div class="row">
+            <div class="col">                
+                <select class="form-select" aria-label="select exercise" @onchange="HandleExerciseSelection" value="@SelectedExercise">
+                    @foreach (var exercise in ExercisesInSpan)
+                    {
+                        <option value="@exercise">@exercise</option>
+                    }
+                </select>
+            </div>
+            <div class="col">
+                <select class="form-select" aria-label="select timespan" @onchange="HandleSpanSelection" value="@SelectedTimespan">
+                    @foreach(var span in new List<int>() { 12, 9, 6, 3, 1 })
+                    {
+                        <option value="@span">in the last @(span > 1 ? span : "") @(span > 1 ? "months" : "month")</option>
+                    }
+                </select>
+            </div>
+        </div>                
+    </div>
     <div class="col-12">
-        <div class="w-75 h-50">
-            <ChartComponent @ref="chartComponent"
-                            ChartJsConfig="chartJsConfig"
-                            OnEventTriggered="ChartEventTriggered">
-            </ChartComponent>
-        </div>
-    </div>    
+        <canvas id="chartCanvas"></canvas>
+    </div>
 </div>
-
 
 @code {
     [CascadingParameter]
@@ -20,50 +34,73 @@
     [CascadingParameter]
     public Action? ToggleSpinner { get; set; }
 
-    ChartJsConfig chartJsConfig = null!;
-    ChartComponent? chartComponent;
-    private bool chartReady;
+    private bool ShowSpinner { get; set; } = true;
+    private List<string> ExercisesInSpan { get; set; } = new List<string>();
+    private string? SelectedExercise { get; set; }
+    private int SelectedTimespan { get; set; } = 12;
+    private static JsonSerializerOptions serializeOptions = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        };
 
     protected override void OnAfterRender(bool firstRender)
     {
         if (firstRender)
         {
+            if (ToggleSpinner != null) ToggleSpinner();
             RefreshUi();
         }
     }
 
-    private void ChartEventTriggered(ChartJsEvent chartJsEvent)
+    public async void RefreshUi()
     {
-        if (chartJsEvent is ChartJsInitEvent initEvent)
+        var initialDate = DateTime.Today.AddMonths(0 - SelectedTimespan);
+        var workouts = await Collections["workouts"].Find<List<WorkoutTracker.Models.Workout>>(
+            new { Completed = true, CompletedAt = new Dictionary<string, DateTime>() { {"$gt", initialDate } } },
+            new { Sort = new { StartedAt = 1 }, Fields = new { Routines = 1 } }
+        );
+        ExercisesInSpan = workouts.SelectMany(workout => workout.Routines.SelectMany(routine => routine.RoutineExercises.Select(exercise => exercise.Name))).Distinct().ToList();
+        if (SelectedExercise == null || !ExercisesInSpan.Contains(SelectedExercise)) SelectedExercise = ExercisesInSpan[0];
+        var exerciseWeights = workouts.SelectMany(workout => workout.Routines.SelectMany(routine => routine.RoutineExercises.Where(exercise => exercise.Name == SelectedExercise).Select(exercise => exercise.EndingWeight)));
+        var exerciseDates = workouts.SelectMany(workout => workout.Routines.SelectMany(routine => routine.RoutineExercises.Where(exercise => exercise.Name == SelectedExercise).Select(exercise => exercise.CompletedAt.ToString("MM/dd/yyyy"))));
+
+        var dataSets = new List<object>()
         {
-            chartReady = true;
-        }
+            new
+            {
+                Label = $"{SelectedExercise} in the last {(SelectedTimespan > 1 ? SelectedTimespan : "")} {(SelectedTimespan > 1 ? "months" : "month")}",
+                Data = exerciseWeights
+            }
+        };
+        // drawChart: (canvasId, chartType, labels, dataSets)
+        var charted = await JsRuntime.InvokeAsync<bool>(
+            "ChartTools.drawChart",
+            "chartCanvas",
+            "line",
+            JsonSerializer.Serialize(exerciseDates, serializeOptions),
+            JsonSerializer.Serialize(dataSets, serializeOptions)
+        );
+        if (ToggleSpinner != null && ShowSpinner) ToggleSpinner();
+        ShowSpinner = false;
+        StateHasChanged();
     }
 
-    private async void RefreshUi()
+    private void HandleExerciseSelection(ChangeEventArgs e)
     {
-        var workouts = await Collections["workouts"].Find<List<WorkoutTracker.Models.Workout>>(
-            new { Completed = true },
-            new { Sort = new { StartedAt = 1 }, Fields = new {Routines = 1 } }
-        );
-        var exercises = workouts.Select(workout => workout.Routines.Select(routine => routine.RoutineExercises));
-        
-
-        chartJsConfig = new ChartJsConfig()
-            {
-                Type = ChartType.line,
-                Data = new ChartJsData()
-                {
-                    Labels = new List<string>() { "Jan", "Feb", "Mar" },
-                    Datasets = new List<ChartJsDataset>()
-                {
-                    new LineDataset()
-                    {
-                        Label = "Dataset 1",
-                        Data = new List<object>() { 1, 2, 3 }
-                    }
-                }
-                }
-            };
+        SelectedExercise = (string)e.Value;
+        RefreshUi();
+    }
+    private void HandleSpanSelection(ChangeEventArgs e)
+    {
+        SelectedTimespan = Int32.Parse(e.Value.ToString());
+        RefreshUi();
+    }
+    private string IsSelectedSpan(int span)
+    {
+        return span == SelectedTimespan ? "selected" : "";
+    }
+    private string isSelectedExercise(string exercisName)
+    {
+        return exercisName == SelectedExercise ? "selected" : "";
     }
 }
