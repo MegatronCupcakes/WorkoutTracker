@@ -18,6 +18,10 @@ window.ChartTools = {
                         data: {
                             labels: labels,
                             datasets: dataSets
+                        },
+                        options: {
+                            showLine: true,
+                            spanGaps: true
                         }
                     }
                 );
