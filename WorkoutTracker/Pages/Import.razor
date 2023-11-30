@@ -37,7 +37,7 @@
                     </div>
                 </div>
                 <div class="col-12">
-                    <div class="btn btn-outline-danger float-end" onclick="@HandleToggleShowConfirm">import</div>
+                    <div class="btn btn-outline-danger float-end @(ImportData == null ? "disabled" : "")" onclick="@HandleToggleShowConfirm">import</div>
                 </div>
             </div>            
         }
@@ -68,6 +68,7 @@
                 PropertyNameCaseInsensitive = true
             };
         ImportData = await JsonSerializer.DeserializeAsync<JsonImport>(e.File.OpenReadStream(maxAllowedSize: MaxFileSize), options);
+        RefreshUi();
     }
     private void HandleToggleShowConfirm()
     {
@@ -93,9 +94,11 @@
             }            
             ShowCompletionStatus = !ShowCompletionStatus;
             ShowConfirmImport = !ShowConfirmImport;
+            // the spinner makes it feel like something is happening, so we'll make sure it displays for at least 1 second
+            await Task.Delay(1000);
             if (ToggleSpinner != null) ToggleSpinner();
             RefreshUi();
-            await Task.Delay(3000);                        
+            await Task.Delay(3000);
             ShowCompletionStatus = !ShowCompletionStatus;
             RefreshUi();
         }

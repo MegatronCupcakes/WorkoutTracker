@@ -48,7 +48,7 @@
     public async void RefreshUi()
     {
         var query = @"{}";
-        documents = await Collections["routines"].Find<List<Routine>>(query);
+        documents = await Collections["routines"].Find<List<Routine>>(query, new { Sort = new { CreatedAt = -1 } });
         StateHasChanged();
     }
 }

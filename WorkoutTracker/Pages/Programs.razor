@@ -54,7 +54,7 @@
     public async void RefreshUi()
     {
         var query = @"{}";
-        documents = await Collections["programs"].Find<List<Program>>(query);
+        documents = await Collections["programs"].Find<List<Program>>(query, new { Sort = new { CreatedAt = -1 } });
         StateHasChanged();
     }
 }

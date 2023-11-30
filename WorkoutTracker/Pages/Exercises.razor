@@ -49,7 +49,7 @@
     public async void RefreshUi()
     {
         var query = @"{}";
-        documents = await Collections["exercises"].Find<List<Exercise>>(query);
+        documents = await Collections["exercises"].Find<List<Exercise>>(query, new { Sort = new { CreatedAt = -1 } });
         StateHasChanged();
     }
 }
