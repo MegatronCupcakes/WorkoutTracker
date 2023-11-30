@@ -1,4 +1,5 @@
 ﻿@using WorkoutTracker.DataAccess;
+@inject IJSRuntime JsRuntime;
 
 <div class="container fade-in fade-out">
     <h3>Export</h3>
@@ -18,10 +19,18 @@
 @code {
     [CascadingParameter]
     public Dictionary<string, IndexedDb> Collections { get; set; }
+    [CascadingParameter]
+    public Action? ToggleSpinner { get; set; }
 
-    private void HandleExportClick()
+    private async void HandleExportClick()
     {
-        // it doesn't actually matter which instance of IndexedDb we use to export....
-        Collections["workouts"].Export(new List<string>(Collections.Keys));
+        if (ToggleSpinner != null) ToggleSpinner();
+        var exported = await IndexedDb.Export(new List<string>(Collections.Keys), JsRuntime);              
+        if (ToggleSpinner != null)
+        {
+            // display the spinner long enough so the user knows something happened
+            await Task.Delay(1000);
+            ToggleSpinner();                
+        }
     }
 }

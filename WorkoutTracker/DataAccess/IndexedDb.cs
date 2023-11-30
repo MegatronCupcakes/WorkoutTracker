@@ -1,4 +1,5 @@
-﻿using Microsoft.JSInterop;
+﻿using Microsoft.AspNetCore.Components;
+using Microsoft.JSInterop;
 using System.Text.Json;
 using WorkoutTracker.Models;
 
@@ -48,18 +49,18 @@ namespace WorkoutTracker.DataAccess
         /// Export json data for list of objectStores
         /// </summary>
         /// <param name="objectStoreNames"></param>
-        public async void Export(List<string> objectStoreNames)
+        public static async Task<bool> Export(List<string> objectStoreNames, IJSRuntime JsRuntime)
         {
-            await JsRuntime.InvokeVoidAsync("DBAccess.export", DatabaseName, objectStoreNames);
+            return await JsRuntime.InvokeAsync<bool>("DBAccess.export", CollectionDefinitions.DatabaseName, objectStoreNames);
         }
         /// <summary>
         /// Import data from json file
         /// </summary>
         /// <param name="dataImport"></param>
         /// <returns></returns>
-        public async Task<bool> Import(JsonImport dataImport)
+        public static async Task<bool> Import(JsonImport dataImport, IJSRuntime JsRuntime)
         {
-            return await JsRuntime.InvokeAsync<bool>("DBAccess.import", DatabaseName, JsonSerializer.Serialize(dataImport, serializeOptions));
+            return await JsRuntime.InvokeAsync<bool>("DBAccess.import", CollectionDefinitions.DatabaseName, JsonSerializer.Serialize(dataImport, serializeOptions));
         }
 
         // Implement Mongo-like methods....

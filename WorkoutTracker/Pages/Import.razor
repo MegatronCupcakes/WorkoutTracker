@@ -1,6 +1,7 @@
 ﻿@using System.Text.Json
 @using WorkoutTracker.DataAccess;
 @using WorkoutTracker.Models;
+@inject IJSRuntime JsRuntime;
 
 <div class="container fade-in fade-out">
     <h3>Import</h3>
@@ -83,8 +84,7 @@
             RefreshUi();
             try
             {
-                // it doesn't actually matter which instance of IndexedDb we use to import....
-                await Collections["workouts"].Import(ImportData);
+                await IndexedDb.Import(ImportData, JsRuntime);
                 CompletionStatus["class"] = CompletionClass;
                 CompletionStatus["message"] = CompletionMessage;
             } catch(Exception e)
@@ -94,7 +94,7 @@
             }            
             ShowCompletionStatus = !ShowCompletionStatus;
             ShowConfirmImport = !ShowConfirmImport;
-            // the spinner makes it feel like something is happening, so we'll make sure it displays for at least 1 second
+            // display the spinner long enough so the user knows something happened
             await Task.Delay(1000);
             if (ToggleSpinner != null) ToggleSpinner();
             RefreshUi();
