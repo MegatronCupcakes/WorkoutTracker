@@ -2,6 +2,7 @@
 {
     public static class CollectionDefinitions
     {
+        public static string DatabaseName = "WorkoutTracker";
         public static Dictionary<string, List<string>> Definitions = new Dictionary<string, List<string>>()
         {
             {"workouts", new List<string>(){ "startedAt", "completedAt" }},
