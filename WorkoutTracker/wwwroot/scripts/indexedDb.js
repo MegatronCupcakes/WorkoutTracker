@@ -4,7 +4,8 @@
 
     Not (yet) Implemented:
         Queries
-            Evaluation Query Operators: '$jsonSchema'
+            Evaluation Query Operators: '$jsonSchema', '$regex', '$text', '$where'
+            Array Query Operators: '$all', '$elemMatch', '$size'
             Geospatial Query Operators
             Bitwise Query Operators
             Projection Operators
