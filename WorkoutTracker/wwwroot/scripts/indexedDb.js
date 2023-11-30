@@ -22,80 +22,8 @@
             sort
 */
 window._databases = {};
-const _db = (databaseName, objectStoreName, permissions) => {
-    try {
-        const _transaction = window._databases[databaseName].transaction(objectStoreName, permissions);
-        const _objectStore = _transaction.objectStore(objectStoreName);
-        return _objectStore;
-    } catch (error) {
-        throw new Error(`DBAccess Error: "${error.message}" - is the database initialized?`);
-    }
-}
-const _createObjectStore = (db, objectStoreName, indexFieldArray) => {
-    const _objectStore = db.createObjectStore(objectStoreName, { keyPath: "_id" });
-    if (Array.isArray(indexFieldArray)) {
-        indexFieldArray.forEach(field => _objectStore.createIndex(field, field, { unique: false }));
-    }    
-}
-const _getSortKeyword = (numericValue) => {
-    try {
-        numericValue = Number(numericValue);
-        if (numericValue == 1) return "next";
-        if (numericValue == -1) return "prev";
-        return null;
-    } catch (error) {
-        return null;
-    }
-}
-const _getOptionDetails = (optionsObject) => {
-    const sortIndex = (optionsObject && 'sort' in optionsObject) ? Object.keys(optionsObject.sort)[0] : null;
-    const sortKeyword = sortIndex ? _getSortKeyword(optionsObject.sort[sortIndex]) : null;
-    const skip = (optionsObject && 'skip' in optionsObject) ? optionsObject.skip : null;
-    const limit = (optionsObject && 'limit' in optionsObject) ? optionsObject.limit : null;
-    const fields = (optionsObject && 'fields' in optionsObject) ? Object.keys(optionsObject.fields) : null;
-    const removeFields = fields ? [] : null;
-    const returnFields = fields ? [] : null;
-    if (fields) {
-        fields.forEach(field => {
-            if (optionsObject.fields[field] == 0) removeFields.push(field);
-            if (optionsObject.fields[field] == 1) returnFields.push(field);
-        });
-    }
-    return [sortIndex, sortKeyword, skip, limit, removeFields, returnFields];
-}
-const _applyFieldProjection = (document, removeFields, returnFields) => {
-    return new Promise((resolve, reject) => {
-        try {
-            // ToDo: account for dotnotation.... not sure how to do this yet.     
-            if (!removeFields && !returnFields) resolve(document);
-            let _document = { ...document };
-            let _documentShell = {};            
-            removeFields.forEach(removeField => {
-                if (removeField.includes(".")) {
-                    const removeSubFields = removeField.split(".");
-                    console.log("DBAccess: projection fields: dot notation support not implemented (yet)");
-                } else {
-                    delete _document[removeField];
-                }                
-            });
-            returnFields.forEach(async returnField => {
-                if (returnField.includes(".")) {                                   
-                    const returnSubFields = returnField.split(".");    
-                    console.log("DBAccess: projection fields: dot notation support not implemented (yet)");
-                } else {
-                    _documentShell[returnField] = _document[returnField] ? _document[returnField] : null;
-                }
-                _document = _documentShell;
-            });            
-            resolve(_document);
-        } catch (error) {
-            reject(error);
-        }
-    });    
-}
 
-
-const DBAccess = {
+window.DBAccess = {
     init: (databaseName, objectStoreName, indexFieldArray) => {
         return new Promise(async (resolve, reject) => {
             try {                
@@ -312,7 +240,6 @@ const DBAccess = {
         });
     }
 };
-window.DBAccess = DBAccess;
 
 const _queryEvaluator = (searchObject) => {    
     let testArray = [];
@@ -700,4 +627,75 @@ const _isNumeric = (value) => {
     } catch (error) {
         return false;
     }
+}
+const _db = (databaseName, objectStoreName, permissions) => {
+    try {
+        const _transaction = window._databases[databaseName].transaction(objectStoreName, permissions);
+        const _objectStore = _transaction.objectStore(objectStoreName);
+        return _objectStore;
+    } catch (error) {
+        throw new Error(`DBAccess Error: "${error.message}" - is the database initialized?`);
+    }
+}
+const _createObjectStore = (db, objectStoreName, indexFieldArray) => {
+    const _objectStore = db.createObjectStore(objectStoreName, { keyPath: "_id" });
+    if (Array.isArray(indexFieldArray)) {
+        indexFieldArray.forEach(field => _objectStore.createIndex(field, field, { unique: false }));
+    }
+}
+const _getSortKeyword = (numericValue) => {
+    try {
+        numericValue = Number(numericValue);
+        if (numericValue == 1) return "next";
+        if (numericValue == -1) return "prev";
+        return null;
+    } catch (error) {
+        return null;
+    }
+}
+const _getOptionDetails = (optionsObject) => {
+    const sortIndex = (optionsObject && 'sort' in optionsObject) ? Object.keys(optionsObject.sort)[0] : null;
+    const sortKeyword = sortIndex ? _getSortKeyword(optionsObject.sort[sortIndex]) : null;
+    const skip = (optionsObject && 'skip' in optionsObject) ? optionsObject.skip : null;
+    const limit = (optionsObject && 'limit' in optionsObject) ? optionsObject.limit : null;
+    const fields = (optionsObject && 'fields' in optionsObject) ? Object.keys(optionsObject.fields) : null;
+    const removeFields = fields ? [] : null;
+    const returnFields = fields ? [] : null;
+    if (fields) {
+        fields.forEach(field => {
+            if (optionsObject.fields[field] == 0) removeFields.push(field);
+            if (optionsObject.fields[field] == 1) returnFields.push(field);
+        });
+    }
+    return [sortIndex, sortKeyword, skip, limit, removeFields, returnFields];
+}
+const _applyFieldProjection = (document, removeFields, returnFields) => {
+    return new Promise((resolve, reject) => {
+        try {
+            // ToDo: account for dotnotation.... not sure how to do this yet.     
+            if (!removeFields && !returnFields) resolve(document);
+            let _document = { ...document };
+            let _documentShell = {};
+            removeFields.forEach(removeField => {
+                if (removeField.includes(".")) {
+                    const removeSubFields = removeField.split(".");
+                    console.log("DBAccess: projection fields: dot notation support not implemented (yet)");
+                } else {
+                    delete _document[removeField];
+                }
+            });
+            returnFields.forEach(async returnField => {
+                if (returnField.includes(".")) {
+                    const returnSubFields = returnField.split(".");
+                    console.log("DBAccess: projection fields: dot notation support not implemented (yet)");
+                } else {
+                    _documentShell[returnField] = _document[returnField] ? _document[returnField] : null;
+                }
+                _document = _documentShell;
+            });
+            resolve(_document);
+        } catch (error) {
+            reject(error);
+        }
+    });
 }
