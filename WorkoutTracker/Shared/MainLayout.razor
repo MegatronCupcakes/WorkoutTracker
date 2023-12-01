@@ -12,7 +12,7 @@
     @if (DbInitializationComplete)
     {
         <NavMenu ShowWizard="@ShowWizard" DisplayPage="@DisplayPage" HandleUiChange="@HandleUiChange" />
-        <div id="contentSpacer" style="height: 5em; width: 100%;"></div>
+        <div class="contentSpacer"></div>
         <CascadingValue Value="@ToggleSpinner">
         <CascadingValue Value="@Collections">
                 @if (ShowWizard)
@@ -57,6 +57,7 @@
         </CascadingValue>
         </CascadingValue>
     }
+    <div class="contentSpacer"></div>
 </div>
 
 @code {

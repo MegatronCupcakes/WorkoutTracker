@@ -65,6 +65,10 @@ a, .btn-link {
         content: "An error has occurred."
     }
 
+.contentSpacer {
+    height: 5em;
+    width: 100%;
+}
 .listing {
     margin-bottom: 1.5em;
 }
