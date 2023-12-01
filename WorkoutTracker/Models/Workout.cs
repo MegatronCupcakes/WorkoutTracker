@@ -143,6 +143,7 @@ namespace WorkoutTracker.Models
             }
             public async Task<bool> Done(Dictionary<string, IndexedDb> collections, IJSRuntime? JsRuntime)
             {
+                var appSettings = await WorkoutTracker.Models.Settings.GetSettings(collections);
                 var notifyForNext = true;
                 bool notified = false;
                 string notificationMessage = "time for your next activity!";
@@ -161,13 +162,13 @@ namespace WorkoutTracker.Models
                 var _workout = await collections["workouts"].FindOne<Workout>(new { _id = WorkoutId });
 
                 // check where we are in the workout
-                var isLastSet = _workout.Routines[RoutineSequenceNumber].RoutineExercises[ExerciseSequenceNumber].Sets.Count == SetSequenceNumber;
-                var isLastExercise = _workout.Routines[RoutineSequenceNumber].RoutineExercises.Count == ExerciseSequenceNumber;
+                var isLastSet = _workout.Routines[RoutineSequenceNumber - 1].RoutineExercises[ExerciseSequenceNumber - 1].Sets.Count == SetSequenceNumber;
+                var isLastExercise = _workout.Routines[RoutineSequenceNumber - 1].RoutineExercises.Count == ExerciseSequenceNumber;
                 var isLastRoutine = _workout.Routines.Count == RoutineSequenceNumber;
                 if (isLastSet)
                 {
                     // check if all Sets have the same ActualWeight
-                    var setList = _workout.Routines[RoutineSequenceNumber].RoutineExercises[ExerciseSequenceNumber].Sets;
+                    var setList = _workout.Routines[RoutineSequenceNumber - 1].RoutineExercises[ExerciseSequenceNumber - 1].Sets;
                     var endingWeight = setList.All(_set => _set.ActualWeight == ActualWeight) ? ActualWeight : ExerciseStartingWeight;
                     updateDictionary.Add($"routines.{RoutineSequenceNumber - 1}.routineExercises.{ExerciseSequenceNumber - 1}.endingWeight", endingWeight);
                     // mark set as complete
@@ -190,7 +191,7 @@ namespace WorkoutTracker.Models
                     // no need to notify for next workoutActivity
                     notifyForNext = false;
                 }
-                if(notifyForNext && JsRuntime != null)
+                if(appSettings.NotificationsEnabled && notifyForNext && JsRuntime != null)
                 {
                     notificationMessage = "time for";
                     if (isLastSet)
