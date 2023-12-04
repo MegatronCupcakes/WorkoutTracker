@@ -206,7 +206,7 @@ namespace WorkoutTracker.Models
                         notificationMessage = $"{notificationMessage} {_workout.Routines[RoutineSequenceNumber - 1].RoutineExercises[ExerciseSequenceNumber - 1].Name} (Set {ExerciseSequenceNumber + 1})";
                         notificationDelay = ExerciseMinutesBetweenSets * 60 * 1000;
                     }
-                    notified = await JsRuntime.InvokeAsync<bool>("NotificationsManager.scheduleNotification", notificationMessage, notificationDelay);
+                    await JsRuntime.InvokeVoidAsync("NotificationsManager.scheduleNotification", notificationMessage, notificationDelay);
                 }                
                 return await collections["workouts"].Update(new { _id = WorkoutId }, new Dictionary<string, object>() { { "$set", updateDictionary } });
             }

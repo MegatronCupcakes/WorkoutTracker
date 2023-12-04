@@ -1,4 +1,6 @@
-self.addEventListener('message', event => {
+self.keepAlive = new CustomEvent("keepAlive");
+
+self.addEventListener('message', event => {    
     const payload = event.data;
     event.waitUntil(
         setTimeout(() => {
@@ -11,7 +13,12 @@ self.addEventListener('message', event => {
         }, payload.delayMs)
     );
 })
-
+self.addEventListener("keepAlive", () => {
+    setTimeout(() => {
+        console.log("I should stay alive!");
+        self.dispatchEvent("keepAlive");
+    }, 20 * 1000);
+});
 self.addEventListener('notificationclick', event => {
     event.notification.close();
     event.waitUntil(clients.openWindow(event.notification.data.url));

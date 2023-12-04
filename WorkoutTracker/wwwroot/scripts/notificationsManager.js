@@ -1,4 +1,5 @@
 window.NotificationsManager = {
+    messageFromServiceWorker: false,
     notificationsEnabled: () => {
         return new Promise((resolve) => {
             try {
@@ -19,22 +20,36 @@ window.NotificationsManager = {
             }
         })
     },
-    scheduleNotification: (message, delayMs) => {
-        return new Promise((resolve) => {
-            try {
-                if (Notification.permission === "granted") {
-                    const messageChannel = new MessageChannel();
-                    messageChannel.port1.onmessage = event => {
-                        if (event.data.error) {
-                            console.error(`NotificationsManager.scheduleNotification ERROR: ${error.message}`);
-                        }
+    scheduleNotification: (message, delayInMilliseconds) => {
+        if (Notification.permission === "granted") {
+            /**
+             * Ideally notifications are sent from the service worker; this would allow for notifications even when the window is closed.
+             * Service workers, however, have a limited lifespan (approximately 30 seconds) and therefore do not live long enough to 
+             * issue notifications.  If this application had a server component, the solution would be to subscribe to push notifications
+             * and initiate the notification server side.  I'm experimenting with ways to prolong the service worker's life, but in the meantime
+             * we will issue the notification here in the browser after a simple timeout.
+             */
+            if (NotificationsManager.messageFromServiceWorker) {
+                const messageChannel = new MessageChannel();
+                messageChannel.port1.onmessage = event => {
+                    if (event.data.error) {
+                        console.error(`NotificationsManager.scheduleNotification ERROR: ${error.message}`);
                     }
-                    navigator.serviceWorker.controller.postMessage({ message: message, delayMs: delayMs, url: window.location.href }, [messageChannel.port2]);
-                }                
-                resolve(true);
-            } catch (error) {
-                resolve(false);
+                }
+                navigator.serviceWorker.controller.postMessage({ message: message, delayMs: delayInMilliseconds, url: window.location.href }, [messageChannel.port2]);
+            } else {
+                setTimeout(() => {
+                    const notification = new Notification('WorkoutTracker', {
+                        body: message,
+                        icon: 'icon-512.png',
+                        vibrate: [100, 50, 100],
+                        data: {
+                            url: window.location.href
+                        }
+                    });
+                }, delayInMilliseconds);
             }
-        })
+        }
+             
     }
 };
