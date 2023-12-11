@@ -9,7 +9,7 @@ namespace WorkoutTracker.Models
         [Required]
         public string? ProgramId { get; set; }
         public bool Started { get; set; } = false;
-        public DateTime? StartedAt { get; set; }
+        public DateTime StartedAt { get; set; } = DateTime.Now;
         public bool Completed { get; set; } = false;
         public DateTime? CompletedAt { get; set; }
         public List<WorkoutRoutine> Routines { get; set; } = new List<WorkoutRoutine>();
