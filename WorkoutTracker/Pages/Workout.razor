@@ -137,7 +137,14 @@
             new { Completed = false, ProgramId = ActiveProgram._id },
             new { Sort = new { StartedAt = -1 } }
         );
-        if (ActiveWorkout != null) CurrentWorkoutActivity = await ActiveWorkout.GetNextWorkoutActivity(Collections);        
+        if (ActiveWorkout == null)
+        {
+            CurrentWorkoutActivity = null;
+        }
+        else
+        {
+            CurrentWorkoutActivity = await ActiveWorkout.GetNextWorkoutActivity(Collections);
+        }
         StateHasChanged();
     }
 

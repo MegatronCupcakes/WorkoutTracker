@@ -184,8 +184,8 @@ namespace WorkoutTracker.Models
                 if (isLastRoutine && isLastExercise && isLastSet)
                 {
                     // mark workout as complete
-                    updateDictionary.Add($"routines.{RoutineSequenceNumber - 1}.completed", true);
-                    updateDictionary.Add($"routines.{RoutineSequenceNumber - 1}.completedAt", now);
+                    updateDictionary.Add($"completed", true);
+                    updateDictionary.Add($"completedAt", now);
                     // no need to notify for next workoutActivity
                     notifyForNext = false;
                 }
