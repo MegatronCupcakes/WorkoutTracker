@@ -1,8 +1,6 @@
 ﻿using Microsoft.JSInterop;
 using System.ComponentModel.DataAnnotations;
 using WorkoutTracker.DataAccess;
-using WorkoutTracker.Pages;
-using static WorkoutTracker.Models.Workout;
 
 namespace WorkoutTracker.Models
 {
@@ -11,9 +9,9 @@ namespace WorkoutTracker.Models
         [Required]
         public string? ProgramId { get; set; }
         public bool Started { get; set; } = false;
-        public DateTime StartedAt { get; set; }
+        public DateTime? StartedAt { get; set; }
         public bool Completed { get; set; } = false;
-        public DateTime CompletedAt { get; set; }
+        public DateTime? CompletedAt { get; set; }
         public List<WorkoutRoutine> Routines { get; set; } = new List<WorkoutRoutine>();
 
         public Workout() { }
@@ -27,9 +25,9 @@ namespace WorkoutTracker.Models
             public string? RoutineId { get; set; }
             public int SequenceNumber { get; set; }
             public bool Started { get; set; } = false;
-            public DateTime StartedAt {  get; set; }
+            public DateTime? StartedAt {  get; set; }
             public bool Completed { get; set; } = false;
-            public DateTime CompletedAt { get; set; }            
+            public DateTime? CompletedAt { get; set; }            
             public new List<WorkoutExercise> RoutineExercises { get; set; } = new List<WorkoutExercise>();
             public WorkoutRoutine()
             {
@@ -49,9 +47,9 @@ namespace WorkoutTracker.Models
             [Required]
             public int SequenceNumber { get; set; }
             public bool Started { get; set; } = false;
-            public DateTime StartedAt { get; set; }
+            public DateTime? StartedAt { get; set; }
             public bool Completed { get; set; } = false;
-            public DateTime CompletedAt { get; set; }
+            public DateTime? CompletedAt { get; set; }
             public int EndingWeight { get; set; }
             public new List<WorkoutSet> Sets { get; set; } = new List<WorkoutSet>();
             public WorkoutExercise()
@@ -133,7 +131,7 @@ namespace WorkoutTracker.Models
             }
             public async Task<bool> StartRoutine(Dictionary<string, IndexedDb> collections)
             {
-                var now = new DateTime();
+                var now = DateTime.Now;
                 var updatePrefix = $"routines.{RoutineSequenceNumber - 1}";
                 dynamic updateObject = new System.Dynamic.ExpandoObject();
                 var updateDictionary = updateObject as IDictionary<string, object>;                
@@ -148,7 +146,7 @@ namespace WorkoutTracker.Models
                 bool notified = false;
                 string notificationMessage = "time for your next activity!";
                 int notificationDelay = 0;
-                var now = new DateTime();
+                DateTime now = DateTime.Now;
                 var updatePrefix = $"routines.{RoutineSequenceNumber - 1}.routineExercises.{ExerciseSequenceNumber - 1}.sets.{SetSequenceNumber - 1}";
                 dynamic updateObject = new System.Dynamic.ExpandoObject();
                 var updateDictionary = updateObject as IDictionary<string, object>;

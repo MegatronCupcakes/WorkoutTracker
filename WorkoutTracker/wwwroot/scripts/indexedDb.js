@@ -18,9 +18,7 @@
             Aggregation Pipeline Stages
             Aggregation Pipeline Operators
         Other Options
-            multi
-            limit
-            sort
+            multi                        
 */
 window._databases = {};
 
@@ -92,7 +90,7 @@ window.DBAccess = {
             const _request = _db(databaseName, objectStoreName, 'readwrite').add({
                 _id: _keyIsUnique ? document._id : crypto.randomUUID(),
                 ...document,
-                createdAt: !document.createdAt ? new Date() : document.createdAt
+                createdAt: !document.createdAt ? (new Date()).toISOString() : document.createdAt
             });
             _request.onerror = error => reject(error);
             _request.onsuccess = () => {
