@@ -5,7 +5,7 @@
         public static string DatabaseName = "WorkoutTracker";
         public static Dictionary<string, List<string>> Definitions = new Dictionary<string, List<string>>()
         {
-            {"workouts", new List<string>(){ "startedAt", "completedAt" }},
+            {"workouts", new List<string>(){ "startedAt", "completedAt", "createdAt" }},
             {"programs", new List<string>(){ "createdAt" } },
             {"routines", new List<string>(){ "createdAt" }},
             {"exercises", new List<string>(){ "createdAt" }},
