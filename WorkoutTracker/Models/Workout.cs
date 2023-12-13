@@ -9,7 +9,7 @@ namespace WorkoutTracker.Models
         [Required]
         public string? ProgramId { get; set; }
         public bool Started { get; set; } = false;
-        public DateTime StartedAt { get; set; } = DateTime.Now;
+        public DateTime? StartedAt { get; set; }
         public bool Completed { get; set; } = false;
         public DateTime? CompletedAt { get; set; }
         public List<WorkoutRoutine> Routines { get; set; } = new List<WorkoutRoutine>();
@@ -134,7 +134,13 @@ namespace WorkoutTracker.Models
                 var now = DateTime.Now;
                 var updatePrefix = $"routines.{RoutineSequenceNumber - 1}";
                 dynamic updateObject = new System.Dynamic.ExpandoObject();
-                var updateDictionary = updateObject as IDictionary<string, object>;                
+                var updateDictionary = updateObject as IDictionary<string, object>;
+                if(RoutineSequenceNumber == 1)
+                {
+                    // first routine of the workout; mark workout as started
+                    updateDictionary.Add("started", true);
+                    updateDictionary.Add("startedAt", now);
+                }
                 updateDictionary.Add($"{updatePrefix}.started", true);
                 updateDictionary.Add($"{updatePrefix}.startedAt", now);
                 return await collections["workouts"].Update(new { _id = WorkoutId }, new Dictionary<string, object>() { { "$set", updateDictionary } });
