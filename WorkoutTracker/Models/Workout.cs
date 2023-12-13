@@ -195,15 +195,14 @@ namespace WorkoutTracker.Models
                     if (isLastSet)
                     {
                         // notify for  the first set of the next exercise
-                        notificationMessage = $"{notificationMessage} {_workout.Routines[RoutineSequenceNumber - 1].RoutineExercises[ExerciseSequenceNumber].Name} (Set 1)";
-                        notificationDelay = ExerciseMinutesBetweenSets * 60 * 1000;
+                        notificationMessage = $"{notificationMessage} {_workout.Routines[RoutineSequenceNumber - 1].RoutineExercises[ExerciseSequenceNumber].Name} (Set 1)";                        
                     }
                     else
                     {
                         // notify for next set of current exercise
-                        notificationMessage = $"{notificationMessage} {_workout.Routines[RoutineSequenceNumber - 1].RoutineExercises[ExerciseSequenceNumber - 1].Name} (Set {ExerciseSequenceNumber + 1})";
-                        notificationDelay = ExerciseMinutesBetweenSets * 60 * 1000;
+                        notificationMessage = $"{notificationMessage} {_workout.Routines[RoutineSequenceNumber - 1].RoutineExercises[ExerciseSequenceNumber - 1].Name} (Set {SetSequenceNumber + 1})";                        
                     }
+                    notificationDelay = ExerciseMinutesBetweenSets * 60 * 1000;
                     await JsRuntime.InvokeVoidAsync("NotificationsManager.scheduleNotification", notificationMessage, notificationDelay);
                 }                
                 return await collections["workouts"].Update(new { _id = WorkoutId }, new Dictionary<string, object>() { { "$set", updateDictionary } });
