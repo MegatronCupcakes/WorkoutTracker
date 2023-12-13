@@ -67,7 +67,7 @@
     {
         var initialDate = DateTime.Today.AddMonths(0 - SelectedTimespan);
         var workouts = await Collections["workouts"].Find<List<WorkoutTracker.Models.Workout>>(
-            new { Completed = true, CompletedAt = new Dictionary<string, DateTime>() { {"$gt", initialDate } } },
+            new { Started = true, StartedAt = new Dictionary<string, DateTime>() { {"$gt", initialDate } } },
             new { Sort = new { StartedAt = 1 }, Fields = new { Routines = 1 } }
         );
         ExercisesInSpan = workouts.SelectMany(workout => workout.Routines.SelectMany(routine => routine.RoutineExercises.Select(exercise => exercise.Name))).Distinct().ToList();
