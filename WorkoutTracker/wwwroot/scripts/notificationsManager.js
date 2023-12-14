@@ -1,5 +1,6 @@
 window.NotificationsManager = {
     messageFromServiceWorker: false,
+    waitingToNotify: null,
     notificationsEnabled: () => {
         return new Promise((resolve) => {
             try {
@@ -38,7 +39,14 @@ window.NotificationsManager = {
                 }
                 navigator.serviceWorker.controller.postMessage({ message: message, delayMs: delayInMilliseconds, url: window.location.href }, [messageChannel.port2]);
             } else {
-                setTimeout(() => {
+                // clear any existing timeout if the user has moved on to the next workout activity early.
+                try {
+                    clearTimeout(NotificationsManager.waitingToNotify);
+                } catch (error) {
+                    // we tried...
+                }
+                // capture timeout
+                NotificationsManager.waitingToNotify = setTimeout(() => {
                     const notification = new Notification('WorkoutTracker', {
                         body: message,
                         icon: 'icon-512.png',
@@ -47,6 +55,7 @@ window.NotificationsManager = {
                             url: window.location.href
                         }
                     });
+                    NotificationsManager.waitingToNotify = null;
                 }, delayInMilliseconds);
             }
         }
