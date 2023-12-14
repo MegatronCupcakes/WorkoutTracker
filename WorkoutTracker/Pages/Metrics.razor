@@ -65,7 +65,7 @@
 
     public async void RefreshUi()
     {
-        var initialDate = DateTime.Today.AddMonths(0 - SelectedTimespan);
+        var initialDate = DateTime.Today.AddMonths(0 - SelectedTimespan);        
         var workouts = await Collections["workouts"].Find<List<WorkoutTracker.Models.Workout>>(
             new { Started = true, StartedAt = new Dictionary<string, DateTime>() { {"$gt", initialDate } } },
             new { Sort = new { StartedAt = 1 }, Fields = new { Routines = 1 } }
@@ -85,11 +85,11 @@
             {
                 var date = dateInRange.ToString("MM/dd/yyyy");
                 int? value = null;
-                var listIndex = exerciseDates.FindIndex(_date => _date == dateInRange);
+                var listIndex = exerciseDates.FindIndex(_date => _date?.Date == dateInRange.Date);
                 if (listIndex > -1)
                 {
-                    value = exerciseWeights[listIndex];
-                }
+                    value = exerciseWeights[listIndex];                    
+                }                
                 labels.Add(date);
                 data.Add(value);
             }
