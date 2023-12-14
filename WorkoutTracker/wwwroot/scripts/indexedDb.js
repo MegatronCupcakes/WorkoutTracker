@@ -110,7 +110,7 @@ window.DBAccess = {
                         let _updatedDocument = _updateDocument(_matchingDocument, updateObject);
                         // disallow updating the _id property by setting it back to its pre-update value.
                         _updatedDocument._id = _matchingDocument._id;
-                        _updatedDocument.updatedAt = new Date();
+                        _updatedDocument.updatedAt = (new Date()).toISOString();
                         const _updateRequest = _db(databaseName, objectStoreName, 'readwrite').put(_updatedDocument);
                         _updateRequest.onerror = error => _reject();
                         _updateRequest.onsuccess = () => _resolve();
