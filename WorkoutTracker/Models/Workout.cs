@@ -121,7 +121,9 @@ namespace WorkoutTracker.Models
                 ExerciseNotes = currentExercise.Notes;
                 ExerciseRepetitions = currentExercise.Repetitions;
                 ActualRepetitions = ExerciseRepetitions;
-                ExerciseStartingWeight = previousWorkout == null ? currentExercise.StartingWeight : previousWorkout.Routines[currentRoutine.SequenceNumber - 1].RoutineExercises[currentExercise.SequenceNumber - 1].EndingWeight;
+                ExerciseStartingWeight = (previousWorkout == null || (currentRoutine.SequenceNumber - 1) <= previousWorkout.Routines.Count) ?
+                    currentExercise.StartingWeight :
+                    previousWorkout.Routines[currentRoutine.SequenceNumber - 1].RoutineExercises[currentExercise.SequenceNumber - 1].EndingWeight;
                 ActualWeight = ExerciseStartingWeight;
                 ExerciseWeightUnits = currentExercise.WeightUnits;                
                 ExerciseMinutesBetweenSets = currentExercise.MinutesBetweenSets;                
