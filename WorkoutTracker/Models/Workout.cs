@@ -155,6 +155,7 @@ namespace WorkoutTracker.Models
                 string notificationMessage = "time for your next activity!";
                 int notificationDelay = 0;
                 DateTime now = DateTime.Now;
+
                 var updatePrefix = $"routines.{RoutineSequenceNumber - 1}.routineExercises.{ExerciseSequenceNumber - 1}.sets.{SetSequenceNumber - 1}";
                 dynamic updateObject = new System.Dynamic.ExpandoObject();
                 var updateDictionary = updateObject as IDictionary<string, object>;
@@ -175,6 +176,10 @@ namespace WorkoutTracker.Models
                 {
                     // check if all Sets have the same ActualWeight
                     var setList = _workout.Routines[RoutineSequenceNumber - 1].RoutineExercises[ExerciseSequenceNumber - 1].Sets;
+                    // remove the final set from the list as it does not have the correct ActualWeight 
+                    // value for calculating EndingWeight (since the update has not been applied yet)
+                    setList.RemoveAt(setList.Count - 1);
+                     // ActualWeight refers to the current (final) set, so we compare the ActualWeight for all sets to determine the endingWeight.
                     var endingWeight = setList.All(_set => _set.ActualWeight == ActualWeight) ? ActualWeight : ExerciseStartingWeight;
                     updateDictionary.Add($"routines.{RoutineSequenceNumber - 1}.routineExercises.{ExerciseSequenceNumber - 1}.endingWeight", endingWeight);
                     // mark set as complete
